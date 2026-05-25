@@ -536,6 +536,15 @@
       .btn-view-toggle { display: inline-block; }
     }
 
+    /* ── PC tab mode ── */
+    body.tab-mode #tab-bar           { display: flex; }
+    body.tab-mode .panel.tab-hidden  { display: none !important; }
+    body.tab-mode #stream-panel,
+    body.tab-mode #bracket-panel     { flex: 1 1 100% !important; width: 100% !important; }
+    body.tab-mode #resizer           { display: none !important; }
+    body.tab-mode #layout-btn        { display: none; }
+    body.tab-mode #tab-mode-btn      { border-color: var(--accent2); color: var(--accent2); }
+
     /* ── Mobile ── */
     @media (max-width: 768px) {
       header { gap: 6px; padding: 8px 10px; }
@@ -543,7 +552,8 @@
       .logo    { flex: 0 0 100%; font-size: 13px; }
       .field   { min-width: 0; flex: 1 1 calc(50% - 6px); }
       .field-sm { flex: 1 1 100%; }
-      #layout-btn { display: none; }
+      #layout-btn  { display: none; }
+      #tab-mode-btn { display: none; }
 
       /* iOS Safari は input の font-size が 16px 未満だとフォーカス時に
          自動でズームしてしまい、ページ全体が横にシフトしたように見える。
@@ -575,7 +585,7 @@
 <body>
 
 <header>
-  <div class="logo">⚔ 格ゲー大会ビューア <span id="version-badge">v1.6.0</span></div>
+  <div class="logo">⚔ 格ゲー大会ビューア <span id="version-badge">v1.7.0</span></div>
 
   <div class="field">
     <label>配信</label>
@@ -595,6 +605,7 @@
   <button class="btn" id="load-btn">読み込む</button>
   <button class="btn btn-sub" id="lock-btn" title="入力をロック">🔓</button>
   <button class="btn btn-sub" id="theme-btn" title="ライトモードへ">☀️</button>
+  <button class="btn btn-sub" id="tab-mode-btn" title="タブモード">🗂 タブ</button>
   <button class="btn btn-sub" id="layout-btn">⇅ 縦並び</button>
 </header>
 
@@ -1397,7 +1408,7 @@ document.getElementById('load-btn').addEventListener('click', () => { loadStream
 });
 
 // ─────────────────────────────────────────────
-//  Mobile tab switching
+//  Tab switching (shared: mobile + PC tab mode)
 // ─────────────────────────────────────────────
 
 function isMobile() { return window.innerWidth <= 768; }
@@ -1414,6 +1425,28 @@ if (isMobile()) switchTab('stream');
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => switchTab(btn.dataset.panel));
 });
+
+// ─────────────────────────────────────────────
+//  PC tab mode toggle
+// ─────────────────────────────────────────────
+
+(function () {
+  const btn = document.getElementById('tab-mode-btn');
+  let active = false;
+
+  btn.addEventListener('click', () => {
+    active = !active;
+    document.body.classList.toggle('tab-mode', active);
+    if (active) {
+      // タブモードON: 配信タブを選択した状態から開始
+      switchTab('stream');
+    } else {
+      // タブモードOFF: 両パネルを復元
+      document.getElementById('stream-panel').classList.remove('tab-hidden');
+      document.getElementById('bracket-panel').classList.remove('tab-hidden');
+    }
+  });
+}());
 
 // ─────────────────────────────────────────────
 //  Layout toggle
