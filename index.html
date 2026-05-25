@@ -220,8 +220,7 @@
     .bracket-body {
       flex: 1;
       min-height: 0;
-      overflow-y: auto;
-      overflow-x: hidden;
+      overflow: auto;
       padding: 14px;
       display: flex;
       flex-direction: column;
@@ -251,22 +250,11 @@
       letter-spacing: 1px;
     }
 
-    .rounds-row {
-      display: flex;
-      gap: 8px;
-      overflow-x: auto;
-      padding-bottom: 10px;
-    }
-
-    .round-col {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      flex-shrink: 0;
-      width: 180px;
-    }
+    /* Bracket canvas — absolute-positioned set cards + SVG connectors */
+    .bracket-canvas { position: relative; flex-shrink: 0; }
 
     .round-header {
+      position: absolute;
       font-size: 10px;
       font-weight: 700;
       color: var(--dim);
@@ -452,7 +440,7 @@
 <body>
 
 <header>
-  <div class="logo">⚔ 格ゲー大会ビューア <span id="version-badge">v1.2.0</span></div>
+  <div class="logo">⚔ 格ゲー大会ビューア <span id="version-badge">v1.3.0</span></div>
 
   <div class="field">
     <label>配信</label>
@@ -869,8 +857,8 @@ function renderBracket(phaseGroup) {
   winners.sort(sortSets);
   losers.sort(sortSets);
 
-  if (winners.length > 0) body.appendChild(renderSection('Winners', winners));
-  if (losers.length  > 0) body.appendChild(renderSection('Losers',  losers));
+  if (winners.length > 0) body.appendChild(renderSection('Winners', winners, sets));
+  if (losers.length  > 0) body.appendChild(renderSection('Losers',  losers, sets));
   if (winners.length === 0 && losers.length === 0) {
     const msg = document.createElement('div');
     msg.className = 'placeholder';
@@ -881,14 +869,14 @@ function renderBracket(phaseGroup) {
   panel.appendChild(body);
 }
 
-function renderSection(title, sets) {
-  const roundGroups = new Map();
-  for (const set of sets) {
-    const key = set.fullRoundText ?? `Round ${Math.abs(set.round)}`;
-    if (!roundGroups.has(key)) roundGroups.set(key, []);
-    roundGroups.get(key).push(set);
-  }
+// ── Bracket layout constants ──────────────────
+const CARD_H  = 72;          // card height (px)
+const ROW_H   = CARD_H + 14; // row unit (86px)
+const HDR_H   = 24;          // column header height
+const COL_W   = 182;         // column width
+const COL_GAP = 30;          // gap between columns
 
+function renderSection(title, sectionSets, allSets) {
   const section = document.createElement('div');
   section.className = 'bracket-section';
 
@@ -897,23 +885,120 @@ function renderSection(title, sets) {
   h.textContent = `${title} Bracket`;
   section.appendChild(h);
 
-  const row = document.createElement('div');
-  row.className = 'rounds-row';
+  // ── Group by round (preserve insertion order = round order) ──
+  const roundGroups = new Map();
+  for (const set of sectionSets) {
+    const key = set.fullRoundText ?? `Round ${Math.abs(set.round)}`;
+    if (!roundGroups.has(key)) roundGroups.set(key, []);
+    roundGroups.get(key).push(set);
+  }
+  const roundKeys = [...roundGroups.keys()];
 
-  for (const [roundName, roundSets] of roundGroups) {
-    const col = document.createElement('div');
-    col.className = 'round-col';
+  // ── Build dependency graph from ALL sets ──
+  // childrenOf[setId] = IDs of sets that FEED INTO setId (previous-round sets)
+  const allSetIds = new Set((allSets ?? sectionSets).map(s => String(s.id)));
+  const secSetIds = new Set(sectionSets.map(s => String(s.id)));
+  const childrenOf = new Map(); // setId → [feederSetId, ...]
+  const feedsInto  = new Map(); // feederSetId → parentSetId
 
-    const rh = document.createElement('div');
-    rh.className = 'round-header';
-    rh.textContent = roundName;
-    col.appendChild(rh);
-
-    for (const set of roundSets) col.appendChild(renderSetCard(set));
-    row.appendChild(col);
+  for (const set of (allSets ?? sectionSets)) {
+    for (const slot of (set.slots ?? [])) {
+      if (slot.prereqType === 'set' && slot.prereqId && allSetIds.has(String(slot.prereqId))) {
+        const pid = String(set.id), cid = String(slot.prereqId);
+        if (!childrenOf.has(pid)) childrenOf.set(pid, []);
+        childrenOf.get(pid).push(cid);
+        feedsInto.set(cid, pid);
+      }
+    }
   }
 
-  section.appendChild(row);
+  // ── Assign vertical rows via DFS from root(s) ──
+  const rowOf = new Map();
+  let nextLeaf = 0;
+
+  function assignRow(id) {
+    if (rowOf.has(id)) return rowOf.get(id);
+    const kids = (childrenOf.get(id) ?? []).filter(k => secSetIds.has(k));
+    if (kids.length === 0) {
+      rowOf.set(id, nextLeaf++);
+    } else {
+      const rows = kids.map(k => assignRow(k));
+      rowOf.set(id, (Math.min(...rows) + Math.max(...rows)) / 2);
+    }
+    return rowOf.get(id);
+  }
+
+  // Roots = sets in this section that nothing else in this section feeds into
+  const secFeeders = new Set(
+    sectionSets.flatMap(s => (childrenOf.get(String(s.id)) ?? []).filter(k => secSetIds.has(k)))
+  );
+  sectionSets.filter(s => !secFeeders.has(String(s.id))).forEach(s => assignRow(String(s.id)));
+  sectionSets.forEach(s => { if (!rowOf.has(String(s.id))) rowOf.set(String(s.id), nextLeaf++); });
+
+  // ── Build canvas ──
+  const numCols = roundKeys.length;
+  const totalW  = numCols * COL_W + Math.max(0, numCols - 1) * COL_GAP;
+  const totalH  = Math.max(1, nextLeaf) * ROW_H + HDR_H + 8;
+
+  const canvas = document.createElement('div');
+  canvas.className = 'bracket-canvas';
+  canvas.style.cssText = `width:${totalW}px;height:${totalH}px;`;
+
+  // SVG layer for connectors
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('width',  String(totalW));
+  svg.setAttribute('height', String(totalH));
+  svg.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;overflow:visible;';
+  canvas.appendChild(svg);
+
+  // ── Render columns ──
+  const cardPos = new Map(); // setId → {x, y} top-left
+
+  roundKeys.forEach((roundKey, colIdx) => {
+    const colX = colIdx * (COL_W + COL_GAP);
+
+    const hdr = document.createElement('div');
+    hdr.className = 'round-header';
+    hdr.textContent = roundKey;
+    hdr.style.cssText = `top:0;left:${colX}px;width:${COL_W}px;`;
+    canvas.appendChild(hdr);
+
+    for (const set of (roundGroups.get(roundKey) ?? [])) {
+      const cardY = HDR_H + 4 + (rowOf.get(String(set.id)) ?? 0) * ROW_H;
+      const card  = renderSetCard(set);
+      card.style.cssText = `position:absolute;top:${cardY}px;left:${colX}px;width:${COL_W}px;`;
+      canvas.appendChild(card);
+      cardPos.set(String(set.id), { x: colX, y: cardY });
+    }
+  });
+
+  // ── Draw SVG connectors ──
+  for (const set of sectionSets) {
+    const to = cardPos.get(String(set.id));
+    if (!to) continue;
+
+    (set.slots ?? []).forEach((slot, slotIdx) => {
+      if (slot.prereqType !== 'set' || !slot.prereqId) return;
+      const from = cardPos.get(String(slot.prereqId));
+      if (!from) return;
+
+      const x1   = from.x + COL_W;               // right edge of feeder
+      const y1   = from.y + CARD_H / 2;           // vertical center of feeder
+      const x2   = to.x;                          // left edge of receiver
+      const y2   = to.y + CARD_H * (slotIdx === 0 ? 0.28 : 0.72); // top/bottom slot
+      const midX = (x1 + x2) / 2;
+
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', `M${x1},${y1} H${midX} V${y2} H${x2}`);
+      path.setAttribute('stroke', '#353568');
+      path.setAttribute('stroke-width', '1.5');
+      path.setAttribute('fill', 'none');
+      path.setAttribute('stroke-linecap', 'round');
+      svg.appendChild(path);
+    });
+  }
+
+  section.appendChild(canvas);
   return section;
 }
 
