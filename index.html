@@ -539,7 +539,7 @@
 <body>
 
 <header>
-  <div class="logo">⚔ 格ゲー大会ビューア <span id="version-badge">v1.5.3</span></div>
+  <div class="logo">⚔ 格ゲー大会ビューア <span id="version-badge">v1.6.0</span></div>
 
   <div class="field">
     <label>配信</label>
@@ -574,6 +574,7 @@
     <div class="panel-bar">
       <span id="stream-badge"></span>
       <span id="stream-title">配信</span>
+      <button class="btn-refresh" id="search-yt-btn" title="大会名でYouTube検索" style="display:none">🔍 YouTube検索</button>
     </div>
     <div class="placeholder" id="stream-ph">
       <div class="placeholder-icon">📺</div>
@@ -621,6 +622,7 @@ query EventPhases($slug: String!) {
   event(slug: $slug) {
     id
     name
+    tournament { name }
     phases {
       id
       name
@@ -727,6 +729,24 @@ function parseStartGGUrl(url) {
   if (m) return { eventSlug: m[1], phaseId: m[2], phaseGroupId: m[3] };
   return null;
 }
+
+// ─────────────────────────────────────────────
+//  YouTube 検索ボタン
+//  ブラケット読み込み後、大会名+種目名でYouTube検索を新タブで開く
+// ─────────────────────────────────────────────
+
+let _streamSearchTerms = '';
+
+function updateStreamSearchBtn(tournamentName, eventName) {
+  _streamSearchTerms = [tournamentName, eventName].filter(Boolean).join(' ').trim();
+  document.getElementById('search-yt-btn').style.display = _streamSearchTerms ? '' : 'none';
+}
+
+document.getElementById('search-yt-btn').addEventListener('click', () => {
+  if (!_streamSearchTerms) return;
+  const q = encodeURIComponent(_streamSearchTerms);
+  window.open(`https://www.youtube.com/results?search_query=${q}`, '_blank', 'noopener,noreferrer');
+});
 
 // ─────────────────────────────────────────────
 //  Stream loader
@@ -903,6 +923,7 @@ async function loadBracket() {
     spinner.remove();
     renderBracket(phaseGroup);
     populateNav(event, parsed.phaseId, parsed.phaseGroupId);
+    updateStreamSearchBtn(event.tournament?.name, event.name);
     document.activeElement?.blur(); // キーボードを閉じる
   } catch (err) {
     spinner.remove();
