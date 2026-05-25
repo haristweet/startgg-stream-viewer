@@ -452,6 +452,20 @@
       gap: 8px;
     }
 
+    /* ── Bracket canvas horizontal scroll wrapper ── */
+    .bracket-canvas-wrap {
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 6px;
+    }
+
+    /* ── View-mode toggle (mobile only) ── */
+    .btn-view-toggle { display: none; }
+    @media (max-width: 768px) {
+      .btn-view-toggle { display: inline-block; }
+    }
+
     /* ── Mobile ── */
     @media (max-width: 768px) {
       header { gap: 6px; padding: 8px 10px; }
@@ -857,7 +871,12 @@ async function loadBracket() {
 //  Bracket renderer
 // ─────────────────────────────────────────────
 
+let _currentPhaseGroup = null;
+let _bracketViewMode = localStorage.getItem('tv-bracket-view') || 'tree'; // 'tree' | 'list'
+
 function renderBracket(phaseGroup) {
+  _currentPhaseGroup = phaseGroup;
+
   const panel = document.getElementById('bracket-panel');
   panel.querySelectorAll('.bracket-body').forEach(el => el.remove());
 
@@ -867,9 +886,21 @@ function renderBracket(phaseGroup) {
   document.getElementById('bracket-title').textContent =
     `${phaseGroup.phase?.name ?? ''} — Pool ${phaseGroup.displayIdentifier ?? phaseGroup.id}`;
 
-  // Add refresh button to bar
+  // ── Bar buttons (refresh + view-mode toggle) ──
   const bar = document.getElementById('bracket-bar');
-  bar.querySelectorAll('.btn-refresh').forEach(el => el.remove());
+  bar.querySelectorAll('.btn-refresh, .btn-view-toggle').forEach(el => el.remove());
+
+  const viewBtn = document.createElement('button');
+  viewBtn.className = 'btn-refresh btn-view-toggle';
+  viewBtn.textContent = _bracketViewMode === 'tree' ? '☰ リスト' : '↔ ツリー';
+  viewBtn.title = _bracketViewMode === 'tree' ? 'リスト表示に切り替え' : 'ツリー表示に切り替え';
+  viewBtn.onclick = () => {
+    _bracketViewMode = _bracketViewMode === 'tree' ? 'list' : 'tree';
+    localStorage.setItem('tv-bracket-view', _bracketViewMode);
+    renderBracket(_currentPhaseGroup);
+  };
+  bar.appendChild(viewBtn);
+
   const refreshBtn = document.createElement('button');
   refreshBtn.className = 'btn-refresh';
   refreshBtn.textContent = '↺ 更新';
@@ -901,13 +932,9 @@ function renderBracket(phaseGroup) {
   winners.sort(sortSets);
   losers.sort(sortSets);
 
-  if (isMobile()) {
-    if (winners.length > 0) body.appendChild(renderSectionMobile('Winners', winners));
-    if (losers.length  > 0) body.appendChild(renderSectionMobile('Losers',  losers));
-  } else {
-    if (winners.length > 0) body.appendChild(renderSection('Winners', winners, sets));
-    if (losers.length  > 0) body.appendChild(renderSection('Losers',  losers, sets));
-  }
+  const useList = _bracketViewMode === 'list';
+  if (winners.length > 0) body.appendChild(useList ? renderSectionMobile('Winners', winners) : renderSection('Winners', winners, sets));
+  if (losers.length  > 0) body.appendChild(useList ? renderSectionMobile('Losers',  losers)  : renderSection('Losers',  losers,  sets));
   if (winners.length === 0 && losers.length === 0) {
     const msg = document.createElement('div');
     msg.className = 'placeholder';
@@ -1107,7 +1134,10 @@ function renderSection(title, sectionSets, allSets) {
     }
   }
 
-  section.appendChild(canvas);
+  const wrap = document.createElement('div');
+  wrap.className = 'bracket-canvas-wrap';
+  wrap.appendChild(canvas);
+  section.appendChild(wrap);
   return section;
 }
 
