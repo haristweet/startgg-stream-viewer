@@ -433,12 +433,32 @@
       border-bottom-color: var(--accent2);
     }
 
+    /* ── Mobile bracket list view ── */
+    .mobile-round { display: flex; flex-direction: column; gap: 6px; }
+    .mobile-round-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--dim);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 2px 8px;
+      background: var(--surface2);
+      border-radius: 4px;
+      display: inline-block;
+    }
+    .mobile-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 8px;
+    }
+
     /* ── Mobile ── */
     @media (max-width: 768px) {
       header { gap: 6px; padding: 8px 10px; }
 
-      .field     { min-width: 0; flex: 1 1 calc(50% - 6px); }
-      .field-sm  { flex: 1 1 100%; }
+      .logo    { flex: 0 0 100%; font-size: 13px; }
+      .field   { min-width: 0; flex: 1 1 calc(50% - 6px); }
+      .field-sm { flex: 1 1 100%; }
       #layout-btn { display: none; }
 
       #tab-bar { display: flex; }
@@ -455,6 +475,8 @@
       .panel.tab-hidden { display: none !important; }
 
       #resizer { display: none !important; }
+
+      .bracket-body { -webkit-overflow-scrolling: touch; }
     }
   </style>
 </head>
@@ -879,8 +901,13 @@ function renderBracket(phaseGroup) {
   winners.sort(sortSets);
   losers.sort(sortSets);
 
-  if (winners.length > 0) body.appendChild(renderSection('Winners', winners, sets));
-  if (losers.length  > 0) body.appendChild(renderSection('Losers',  losers, sets));
+  if (isMobile()) {
+    if (winners.length > 0) body.appendChild(renderSectionMobile('Winners', winners));
+    if (losers.length  > 0) body.appendChild(renderSectionMobile('Losers',  losers));
+  } else {
+    if (winners.length > 0) body.appendChild(renderSection('Winners', winners, sets));
+    if (losers.length  > 0) body.appendChild(renderSection('Losers',  losers, sets));
+  }
   if (winners.length === 0 && losers.length === 0) {
     const msg = document.createElement('div');
     msg.className = 'placeholder';
@@ -889,6 +916,46 @@ function renderBracket(phaseGroup) {
   }
 
   panel.appendChild(body);
+}
+
+// ── Mobile bracket: simple round-list view ───────────────────────────────────
+
+function renderSectionMobile(title, sectionSets) {
+  const section = document.createElement('div');
+  section.className = 'bracket-section';
+
+  const h = document.createElement('div');
+  h.className = 'section-title';
+  h.textContent = `${title} Bracket`;
+  section.appendChild(h);
+
+  // Group by round (preserving insertion order = round order)
+  const roundGroups = new Map();
+  for (const set of sectionSets) {
+    const key = set.fullRoundText ?? `Round ${Math.abs(set.round)}`;
+    if (!roundGroups.has(key)) roundGroups.set(key, []);
+    roundGroups.get(key).push(set);
+  }
+
+  for (const [roundKey, sets] of roundGroups) {
+    const roundDiv = document.createElement('div');
+    roundDiv.className = 'mobile-round';
+
+    const lbl = document.createElement('div');
+    lbl.className = 'mobile-round-label';
+    lbl.textContent = roundKey;
+    roundDiv.appendChild(lbl);
+
+    const grid = document.createElement('div');
+    grid.className = 'mobile-cards-grid';
+    for (const set of sets) {
+      grid.appendChild(renderSetCard(set));
+    }
+    roundDiv.appendChild(grid);
+    section.appendChild(roundDiv);
+  }
+
+  return section;
 }
 
 // ── Bracket layout constants ──────────────────
