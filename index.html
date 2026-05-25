@@ -440,7 +440,7 @@
 <body>
 
 <header>
-  <div class="logo">⚔ 格ゲー大会ビューア <span id="version-badge">v1.3.0</span></div>
+  <div class="logo">⚔ 格ゲー大会ビューア <span id="version-badge">v1.3.1</span></div>
 
   <div class="field">
     <label>配信</label>
@@ -972,30 +972,50 @@ function renderSection(title, sectionSets, allSets) {
     }
   });
 
-  // ── Draw SVG connectors ──
+  // ── Draw SVG connectors (T-junction style) ──
+  function seg(x1, y1, x2, y2) {
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+    line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+    line.setAttribute('stroke', '#7a7acc');
+    line.setAttribute('stroke-width', '2');
+    line.setAttribute('stroke-linecap', 'round');
+    svg.appendChild(line);
+  }
+
   for (const set of sectionSets) {
     const to = cardPos.get(String(set.id));
     if (!to) continue;
 
-    (set.slots ?? []).forEach((slot, slotIdx) => {
-      if (slot.prereqType !== 'set' || !slot.prereqId) return;
-      const from = cardPos.get(String(slot.prereqId));
-      if (!from) return;
+    // Collect feeder positions (only those visible in this section)
+    const feeders = (set.slots ?? [])
+      .map(slot => (slot.prereqType === 'set' && slot.prereqId)
+        ? cardPos.get(String(slot.prereqId)) : null)
+      .filter(Boolean);
 
-      const x1   = from.x + COL_W;               // right edge of feeder
-      const y1   = from.y + CARD_H / 2;           // vertical center of feeder
-      const x2   = to.x;                          // left edge of receiver
-      const y2   = to.y + CARD_H * (slotIdx === 0 ? 0.28 : 0.72); // top/bottom slot
-      const midX = (x1 + x2) / 2;
+    if (feeders.length === 0) continue;
 
-      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      path.setAttribute('d', `M${x1},${y1} H${midX} V${y2} H${x2}`);
-      path.setAttribute('stroke', '#353568');
-      path.setAttribute('stroke-width', '1.5');
-      path.setAttribute('fill', 'none');
-      path.setAttribute('stroke-linecap', 'round');
-      svg.appendChild(path);
-    });
+    const toCY = to.y + CARD_H / 2;           // center-y of receiver
+    const midX = feeders[0].x + COL_W + COL_GAP / 2; // midpoint between columns
+
+    if (feeders.length >= 2) {
+      // Two feeders → T-junction
+      //   feeder1 ───┐
+      //              ├──── receiver
+      //   feeder2 ───┘
+      const fy0 = feeders[0].y + CARD_H / 2;
+      const fy1 = feeders[1].y + CARD_H / 2;
+      seg(feeders[0].x + COL_W, fy0, midX, fy0);  // horizontal from feeder 0
+      seg(feeders[1].x + COL_W, fy1, midX, fy1);  // horizontal from feeder 1
+      seg(midX, Math.min(fy0, fy1), midX, Math.max(fy0, fy1)); // vertical bar
+      seg(midX, toCY, to.x, toCY);                // horizontal to receiver
+    } else {
+      // Single feeder → simple elbow
+      const fy = feeders[0].y + CARD_H / 2;
+      seg(feeders[0].x + COL_W, fy, midX, fy);
+      if (Math.abs(fy - toCY) > 1) seg(midX, fy, midX, toCY);
+      seg(midX, toCY, to.x, toCY);
+    }
   }
 
   section.appendChild(canvas);
