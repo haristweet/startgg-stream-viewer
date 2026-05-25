@@ -15,7 +15,28 @@
       --text:     #e8e8f0;
       --dim:      #7777aa;
       --border:   #2a2a45;
+      --conn:     #7a7acc;
     }
+
+    /* ── Light mode ── */
+    body.light {
+      --bg:      #f2f2f8;
+      --surface: #ffffff;
+      --surface2:#e6e6f0;
+      --accent:  #d63040;
+      --accent2: #5b41dd;
+      --green:   #2da44e;
+      --text:    #18182e;
+      --dim:     #7070aa;
+      --border:  #ccccdd;
+      --conn:    #8888cc;
+    }
+    body.light .set-card           { box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+    body.light .slot-win .slot-name { color: #1a7f3a; }
+    body.light .slot-win .slot-score{ color: #1a7f3a; }
+    body.light .slot-lose .slot-name { color: #aaaacc; }
+    body.light .slot-tbd .slot-name  { color: #aaaacc; }
+    body.light .badge-sg { background: #ededff; color: #5b41dd; border-color: #c0b8f8; }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; overflow: hidden; }
@@ -440,7 +461,7 @@
 <body>
 
 <header>
-  <div class="logo">⚔ 格ゲー大会ビューア <span id="version-badge">v1.3.1</span></div>
+  <div class="logo">⚔ 格ゲー大会ビューア <span id="version-badge">v1.4.0</span></div>
 
   <div class="field">
     <label>配信</label>
@@ -459,6 +480,7 @@
 
   <button class="btn" id="load-btn">読み込む</button>
   <button class="btn btn-sub" id="lock-btn" title="入力をロック">🔓</button>
+  <button class="btn btn-sub" id="theme-btn" title="ライトモードへ">☀️</button>
   <button class="btn btn-sub" id="layout-btn">⇅ 縦並び</button>
 </header>
 
@@ -977,7 +999,7 @@ function renderSection(title, sectionSets, allSets) {
     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     line.setAttribute('x1', x1); line.setAttribute('y1', y1);
     line.setAttribute('x2', x2); line.setAttribute('y2', y2);
-    line.setAttribute('stroke', '#7a7acc');
+    line.setAttribute('stroke', 'var(--conn)');
     line.setAttribute('stroke-width', '2');
     line.setAttribute('stroke-linecap', 'round');
     svg.appendChild(line);
@@ -1076,6 +1098,27 @@ function showBanner(panel, type, msg) {
   d.textContent = msg;
   panel.appendChild(d);
 }
+
+// ─────────────────────────────────────────────
+//  Theme toggle (dark / light)
+// ─────────────────────────────────────────────
+
+const themeBtn = document.getElementById('theme-btn');
+let isLight = localStorage.getItem('tv-theme') === 'light';
+
+function applyTheme() {
+  document.body.classList.toggle('light', isLight);
+  themeBtn.textContent = isLight ? '🌙' : '☀️';
+  themeBtn.title = isLight ? 'ダークモードへ' : 'ライトモードへ';
+  localStorage.setItem('tv-theme', isLight ? 'light' : 'dark');
+}
+
+applyTheme();
+
+themeBtn.addEventListener('click', () => {
+  isLight = !isLight;
+  applyTheme();
+});
 
 // ─────────────────────────────────────────────
 //  Lock toggle
