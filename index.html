@@ -357,6 +357,42 @@
     .slot-lose .slot-score { color: #55556a; }
     .slot-tbd .slot-name   { color: #44445a; font-style: italic; }
 
+    /* YouTube URL copy row */
+    #yt-url-row {
+      flex-shrink: 0;
+      display: none;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+    }
+    #yt-url-input {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      color: var(--fg);
+      font-size: 12px;
+      padding: 3px 8px;
+      min-width: 0;
+    }
+    #yt-url-input::placeholder { color: var(--dim); }
+    #yt-copy-btn {
+      flex-shrink: 0;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--dim);
+      border-radius: 5px;
+      padding: 3px 10px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    #yt-copy-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+    #yt-copy-btn.copied { border-color: var(--green); color: var(--green); }
+
     /* Refresh button */
     .btn-refresh {
       margin-left: auto;
@@ -576,6 +612,10 @@
       <span id="stream-title">配信</span>
       <button class="btn-refresh" id="search-yt-btn" title="大会名でYouTube検索" style="display:none">🔍 YouTube検索</button>
     </div>
+    <div id="yt-url-row">
+      <input type="url" id="yt-url-input" placeholder="見つけたURLをここに貼り付け" autocomplete="off" spellcheck="false">
+      <button id="yt-copy-btn">📋 コピー</button>
+    </div>
     <div class="placeholder" id="stream-ph">
       <div class="placeholder-icon">📺</div>
       <p>YouTube または Twitch の URL を入力して<br>「読み込む」を押してください</p>
@@ -739,7 +779,9 @@ let _streamSearchTerms = '';
 
 function updateStreamSearchBtn(tournamentName, eventName) {
   _streamSearchTerms = [tournamentName, eventName].filter(Boolean).join(' ').trim();
-  document.getElementById('search-yt-btn').style.display = _streamSearchTerms ? '' : 'none';
+  const show = !!_streamSearchTerms;
+  document.getElementById('search-yt-btn').style.display = show ? '' : 'none';
+  document.getElementById('yt-url-row').style.display  = show ? 'flex' : 'none';
 }
 
 document.getElementById('search-yt-btn').addEventListener('click', () => {
@@ -747,6 +789,34 @@ document.getElementById('search-yt-btn').addEventListener('click', () => {
   const q = encodeURIComponent(_streamSearchTerms);
   window.open(`https://www.youtube.com/results?search_query=${q}`, '_blank', 'noopener,noreferrer');
 });
+
+// YouTube URL copy row
+(function () {
+  const input   = document.getElementById('yt-url-input');
+  const copyBtn = document.getElementById('yt-copy-btn');
+  let _copyTimer = null;
+
+  input.addEventListener('focus', () => { if (input.value) input.select(); });
+
+  copyBtn.addEventListener('click', async () => {
+    const url = input.value.trim();
+    if (!url) { input.focus(); return; }
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      // fallback for environments without clipboard API
+      input.select();
+      document.execCommand('copy');
+    }
+    copyBtn.textContent = '✅ コピー完了';
+    copyBtn.classList.add('copied');
+    clearTimeout(_copyTimer);
+    _copyTimer = setTimeout(() => {
+      copyBtn.textContent = '📋 コピー';
+      copyBtn.classList.remove('copied');
+    }, 2000);
+  });
+}());
 
 // ─────────────────────────────────────────────
 //  Stream loader
