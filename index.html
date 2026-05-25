@@ -522,7 +522,7 @@
 <body>
 
 <header>
-  <div class="logo">⚔ 格ゲー大会ビューア <span id="version-badge">v1.4.6</span></div>
+  <div class="logo">⚔ 格ゲー大会ビューア <span id="version-badge">v1.4.7</span></div>
 
   <div class="field">
     <label>配信</label>
@@ -1114,11 +1114,19 @@ function renderSection(title, sectionSets, allSets) {
   });
 
   // ── Draw SVG connectors (T-junction style) ──
+  // getComputedStyle で CSS 変数を解決してから setAttribute に渡す。
+  // Safari は SVG presentation attribute も CSS class 内の stroke も
+  // var() を解決しないため、これが最も確実な方法。
+  const connColor = getComputedStyle(document.documentElement)
+    .getPropertyValue('--conn').trim() || '#7a7acc';
+
   function seg(x1, y1, x2, y2) {
     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     line.setAttribute('x1', x1); line.setAttribute('y1', y1);
     line.setAttribute('x2', x2); line.setAttribute('y2', y2);
-    line.classList.add('bracket-conn'); // CSS class 経由で var(--conn) を解決 (Safari SVG属性ではvar()が効かない)
+    line.setAttribute('stroke', connColor);
+    line.setAttribute('stroke-width', '2');
+    line.setAttribute('stroke-linecap', 'round');
     svg.appendChild(line);
   }
 
@@ -1231,6 +1239,8 @@ function applyTheme() {
   themeBtn.textContent = isLight ? '🌙' : '☀️';
   themeBtn.title = isLight ? 'ダークモードへ' : 'ライトモードへ';
   localStorage.setItem('tv-theme', isLight ? 'light' : 'dark');
+  // SVG connector の色を更新するためブラケットを再描画
+  if (_currentPhaseGroup) renderBracket(_currentPhaseGroup);
 }
 
 applyTheme();
