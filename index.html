@@ -42,16 +42,18 @@
     body.light .badge-sg { background: #ededff; color: #5b41dd; border-color: #c0b8f8; }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body {
-      height: 100%;
-      height: 100dvh;
-      height: var(--app-height, 100dvh);
-      overflow: hidden;
-      overscroll-behavior: none;
-      touch-action: pan-y; /* iOS: ページレベルの横スクロールを禁止 */
-    }
+
+    html { height: 100%; overflow: hidden; }
 
     body {
+      /* position:fixed + inset:0 でボディをビューポートに固定。
+         iOS Safari でも横スクロールが物理的に発生しなくなる。
+         高さも自動的にブラウザ Chrome を除いた正確なサイズになる。 */
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: pan-y;
       display: flex;
       flex-direction: column;
       background: var(--bg);
@@ -520,7 +522,7 @@
 <body>
 
 <header>
-  <div class="logo">⚔ 格ゲー大会ビューア <span id="version-badge">v1.4.5</span></div>
+  <div class="logo">⚔ 格ゲー大会ビューア <span id="version-badge">v1.4.6</span></div>
 
   <div class="field">
     <label>配信</label>
@@ -591,21 +593,6 @@
 </div>
 
 <script>
-// ─────────────────────────────────────────────
-//  Viewport height fix (iOS Safari)
-//  Safari の address bar / navigation bar が出ていると
-//  100% / 100vh が正しい高さを取れないため、
-//  window.innerHeight を CSS 変数に即時反映する。
-// ─────────────────────────────────────────────
-(function fixViewport() {
-  function apply() {
-    document.documentElement.style.setProperty('--app-height', window.innerHeight + 'px');
-  }
-  apply();
-  window.addEventListener('resize',            apply, { passive: true });
-  window.addEventListener('orientationchange', apply, { passive: true });
-})();
-
 // ─────────────────────────────────────────────
 //  Constants
 // ─────────────────────────────────────────────
