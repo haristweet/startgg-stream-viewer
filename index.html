@@ -39,7 +39,13 @@
     body.light .badge-sg { background: #ededff; color: #5b41dd; border-color: #c0b8f8; }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+    html, body {
+      height: 100%;
+      height: 100dvh;                   /* iOS Safari 15.4+: dynamic viewport height */
+      height: var(--app-height, 100dvh); /* overridden by JS for full compatibility */
+      overflow: hidden;
+      overscroll-behavior: none;
+    }
 
     body {
       display: flex;
@@ -500,7 +506,7 @@
 <body>
 
 <header>
-  <div class="logo">⚔ 格ゲー大会ビューア <span id="version-badge">v1.4.3</span></div>
+  <div class="logo">⚔ 格ゲー大会ビューア <span id="version-badge">v1.4.4</span></div>
 
   <div class="field">
     <label>配信</label>
@@ -571,6 +577,21 @@
 </div>
 
 <script>
+// ─────────────────────────────────────────────
+//  Viewport height fix (iOS Safari)
+//  Safari の address bar / navigation bar が出ていると
+//  100% / 100vh が正しい高さを取れないため、
+//  window.innerHeight を CSS 変数に即時反映する。
+// ─────────────────────────────────────────────
+(function fixViewport() {
+  function apply() {
+    document.documentElement.style.setProperty('--app-height', window.innerHeight + 'px');
+  }
+  apply();
+  window.addEventListener('resize',            apply, { passive: true });
+  window.addEventListener('orientationchange', apply, { passive: true });
+})();
+
 // ─────────────────────────────────────────────
 //  Constants
 // ─────────────────────────────────────────────
