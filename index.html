@@ -43,7 +43,12 @@
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    html { height: 100%; overflow: hidden; }
+    html {
+      height: 100%;
+      width: 100%;
+      max-width: 100vw;
+      overflow: hidden;
+    }
 
     body {
       /* position:fixed + inset:0 でボディをビューポートに固定。
@@ -526,7 +531,7 @@
 <body>
 
 <header>
-  <div class="logo">⚔ 格ゲー大会ビューア <span id="version-badge">v1.5.1</span></div>
+  <div class="logo">⚔ 格ゲー大会ビューア <span id="version-badge">v1.5.2</span></div>
 
   <div class="field">
     <label>配信</label>
@@ -1371,6 +1376,23 @@ document.addEventListener('mouseup',   endDrag);
 resizer.addEventListener('touchstart', e => startDrag(vertical ? e.touches[0].clientY : e.touches[0].clientX), { passive: true });
 document.addEventListener('touchmove',  e => moveDrag(vertical ? e.touches[0].clientY : e.touches[0].clientX), { passive: true });
 document.addEventListener('touchend',  endDrag);
+
+// ─────────────────────────────────────────────
+//  起動時のスクロール位置リセット
+//  iOS Safari は前回のスクロール位置を復元するため、ロゴや入力欄が
+//  画面外にはみ出した状態で開かれることがある。強制的に (0,0) に戻す。
+// ─────────────────────────────────────────────
+if ('scrollRestoration' in history) {
+  history.scrollRestoration = 'manual';
+}
+function resetScroll() {
+  window.scrollTo(0, 0);
+  document.documentElement.scrollLeft = 0;
+  document.body.scrollLeft = 0;
+}
+resetScroll();
+window.addEventListener('load', resetScroll);
+window.addEventListener('pageshow', resetScroll); // bfcache 復元時にも効く
 
 // ─────────────────────────────────────────────
 //  起動時自動読み込み
