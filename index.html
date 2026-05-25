@@ -341,6 +341,54 @@
       transition: all 0.15s;
     }
     .btn-refresh:hover { border-color: var(--accent2); color: var(--accent2); }
+
+    /* ── Tab bar (mobile only) ── */
+    #tab-bar {
+      display: none;
+      flex-shrink: 0;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 10px 8px;
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--dim);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .tab-btn.active {
+      color: var(--text);
+      border-bottom-color: var(--accent2);
+    }
+
+    /* ── Mobile ── */
+    @media (max-width: 768px) {
+      header { gap: 6px; padding: 8px 10px; }
+
+      .field     { min-width: 0; flex: 1 1 calc(50% - 6px); }
+      .field-sm  { flex: 1 1 100%; }
+      #layout-btn { display: none; }
+
+      #tab-bar { display: flex; }
+
+      #viewer { flex-direction: column !important; }
+
+      #stream-panel,
+      #bracket-panel {
+        flex: 1 1 100% !important;
+        width: 100%  !important;
+        height: 100% !important;
+      }
+
+      .panel.tab-hidden { display: none !important; }
+
+      #resizer { display: none !important; }
+    }
   </style>
 </head>
 <body>
@@ -366,6 +414,11 @@
   <button class="btn" id="load-btn">読み込む</button>
   <button class="btn btn-sub" id="layout-btn">⇅ 縦並び</button>
 </header>
+
+<nav id="tab-bar">
+  <button class="tab-btn active" data-panel="stream">📺 配信</button>
+  <button class="tab-btn" data-panel="bracket">🏆 ブラケット</button>
+</nav>
 
 <div id="viewer">
 
@@ -585,6 +638,8 @@ async function loadBracket() {
   spinner.textContent = '読み込み中…';
   panel.appendChild(spinner);
 
+  if (isMobile()) switchTab('bracket');
+
   try {
     const phaseGroup = await fetchPhaseGroup(parsed.phaseGroupId, apiKey);
     localStorage.setItem('sg-api-key', apiKey);
@@ -758,6 +813,25 @@ document.getElementById('load-btn').addEventListener('click', () => { loadStream
   document.getElementById(id).addEventListener('keydown', e => {
     if (e.key === 'Enter') { loadStream(); loadBracket(); }
   });
+});
+
+// ─────────────────────────────────────────────
+//  Mobile tab switching
+// ─────────────────────────────────────────────
+
+function isMobile() { return window.innerWidth <= 768; }
+
+function switchTab(panel) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.panel === panel));
+  document.getElementById('stream-panel').classList.toggle('tab-hidden', panel !== 'stream');
+  document.getElementById('bracket-panel').classList.toggle('tab-hidden', panel !== 'bracket');
+}
+
+// Initial state on mobile: hide bracket panel
+if (isMobile()) switchTab('stream');
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => switchTab(btn.dataset.panel));
 });
 
 // ─────────────────────────────────────────────
