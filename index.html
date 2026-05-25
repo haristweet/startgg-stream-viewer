@@ -349,6 +349,22 @@
       letter-spacing: 0;
     }
 
+    /* Locked state */
+    header.locked input {
+      pointer-events: none;
+      opacity: 0.45;
+      border-color: transparent;
+      background: transparent;
+    }
+    header.locked #load-btn {
+      pointer-events: none;
+      opacity: 0.35;
+    }
+    #lock-btn.locked {
+      border-color: var(--accent2);
+      color: var(--accent2);
+    }
+
     /* ── Tab bar (mobile only) ── */
     #tab-bar {
       display: none;
@@ -419,6 +435,7 @@
   </div>
 
   <button class="btn" id="load-btn">読み込む</button>
+  <button class="btn btn-sub" id="lock-btn" title="入力をロック">🔓</button>
   <button class="btn btn-sub" id="layout-btn">⇅ 縦並び</button>
 </header>
 
@@ -809,6 +826,29 @@ function showBanner(panel, type, msg) {
   d.textContent = msg;
   panel.appendChild(d);
 }
+
+// ─────────────────────────────────────────────
+//  Lock toggle
+// ─────────────────────────────────────────────
+
+const headerEl  = document.querySelector('header');
+const lockBtn   = document.getElementById('lock-btn');
+let locked = localStorage.getItem('tv-locked') === 'true';
+
+function applyLock() {
+  headerEl.classList.toggle('locked', locked);
+  lockBtn.classList.toggle('locked', locked);
+  lockBtn.textContent = locked ? '🔒' : '🔓';
+  lockBtn.title = locked ? 'ロック解除' : '入力をロック';
+  localStorage.setItem('tv-locked', locked);
+}
+
+applyLock();
+
+lockBtn.addEventListener('click', () => {
+  locked = !locked;
+  applyLock();
+});
 
 // ─────────────────────────────────────────────
 //  Event wiring
