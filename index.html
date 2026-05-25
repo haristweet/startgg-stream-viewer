@@ -1380,6 +1380,7 @@ document.addEventListener('touchend',  endDrag);
   const bracketUrl = document.getElementById('bracket-url').value.trim();
   const apiKey     = document.getElementById('api-key').value.trim();
   if (bracketUrl && apiKey) {
+    document.activeElement?.blur(); // キーボードを即座に閉じてから読み込む
     loadStream();
     loadBracket();
   }
