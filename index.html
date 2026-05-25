@@ -526,21 +526,21 @@
 <body>
 
 <header>
-  <div class="logo">⚔ 格ゲー大会ビューア <span id="version-badge">v1.5.0</span></div>
+  <div class="logo">⚔ 格ゲー大会ビューア <span id="version-badge">v1.5.1</span></div>
 
   <div class="field">
     <label>配信</label>
-    <input type="text" id="stream-url" placeholder="YouTube / Twitch URL">
+    <input type="text" id="stream-url" placeholder="YouTube / Twitch URL" enterkeyhint="go">
   </div>
 
   <div class="field">
     <label>ブラケット</label>
-    <input type="text" id="bracket-url" placeholder="start.gg ブラケット URL">
+    <input type="text" id="bracket-url" placeholder="start.gg ブラケット URL" enterkeyhint="go">
   </div>
 
   <div class="field field-sm">
     <label>API Key</label>
-    <input type="password" id="api-key" placeholder="start.gg トークン">
+    <input type="password" id="api-key" placeholder="start.gg トークン" enterkeyhint="go">
   </div>
 
   <button class="btn" id="load-btn">読み込む</button>
@@ -890,6 +890,7 @@ async function loadBracket() {
     spinner.remove();
     renderBracket(phaseGroup);
     populateNav(event, parsed.phaseId, parsed.phaseGroupId);
+    document.activeElement?.blur(); // キーボードを閉じる
   } catch (err) {
     spinner.remove();
     ph.style.display = '';
@@ -1370,6 +1371,19 @@ document.addEventListener('mouseup',   endDrag);
 resizer.addEventListener('touchstart', e => startDrag(vertical ? e.touches[0].clientY : e.touches[0].clientX), { passive: true });
 document.addEventListener('touchmove',  e => moveDrag(vertical ? e.touches[0].clientY : e.touches[0].clientX), { passive: true });
 document.addEventListener('touchend',  endDrag);
+
+// ─────────────────────────────────────────────
+//  起動時自動読み込み
+//  localStorage に URL と API Key が保存済みなら自動で読み込む
+// ─────────────────────────────────────────────
+{
+  const bracketUrl = document.getElementById('bracket-url').value.trim();
+  const apiKey     = document.getElementById('api-key').value.trim();
+  if (bracketUrl && apiKey) {
+    loadStream();
+    loadBracket();
+  }
+}
 </script>
 </body>
 </html>
