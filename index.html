@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>格ゲー大会ビューア</title>
+  <style>
+    :root {
+      --bg:       #0d0d14;
+      --surface:  #161625;
+      --surface2: #1e1e35;
+      --accent:   #ff4655;
+      --accent2:  #7b61ff;
+      --green:    #56d364;
+      --text:     #e8e8f0;
+      --dim:      #7777aa;
+      --border:   #2a2a45;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 14px;
+    }
+
+    /* ── Header ── */
+    header {
+      flex-shrink: 0;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .logo {
+      font-weight: 800;
+      font-size: 15px;
+      color: var(--accent);
+      white-space: nowrap;
+      letter-spacing: 0.5px;
+    }
+
+    .field {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+      min-width: 160px;
+    }
+
+    .field-sm { flex: 0 0 220px; }
+
+    .field label {
+      font-size: 11px;
+      color: var(--dim);
+      white-space: nowrap;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    input[type="text"],
+    input[type="password"] {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 5px 10px;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input:focus { border-color: var(--accent2); }
+    input::placeholder { color: #44445a; }
+
+    .btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 16px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: filter 0.15s;
+    }
+    .btn:hover { filter: brightness(1.15); }
+
+    .btn-sub {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--dim);
+      font-weight: 500;
+    }
+    .btn-sub:hover { color: var(--text); border-color: var(--accent2); filter: none; }
+
+    /* ── Viewer ── */
+    #viewer {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+    #viewer.vertical { flex-direction: column; }
+
+    /* ── Panels ── */
+    .panel {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--bg);
+    }
+    #stream-panel  { flex: 0 0 60%; }
+    #bracket-panel { flex: 1 1 0; }
+
+    .panel-bar {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 12px;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--dim);
+      min-height: 28px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .badge-yt { background: #ff0000; color: #fff; }
+    .badge-tw { background: #9146ff; color: #fff; }
+    .badge-sg { background: #1c1c4e; color: #9090ff; border: 1px solid #3a3a8a; }
+
+    .panel iframe {
+      flex: 1;
+      width: 100%;
+      border: none;
+      background: #000;
+    }
+
+    /* Placeholder */
+    .placeholder {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      color: var(--dim);
+      padding: 32px;
+      text-align: center;
+    }
+    .placeholder-icon { font-size: 52px; opacity: 0.25; }
+    .placeholder p { font-size: 13px; line-height: 1.6; }
+    .placeholder a { color: var(--accent2); }
+
+    /* Error / Warning banners */
+    .banner {
+      flex-shrink: 0;
+      margin: 8px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .banner-warn { background: rgba(255,150,30,0.12); border: 1px solid rgba(255,150,30,0.35); color: #ffb060; }
+    .banner-err  { background: rgba(255,70,85,0.12);  border: 1px solid rgba(255,70,85,0.35);  color: #ff8090; }
+
+    /* Loading spinner */
+    .spinner {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      color: var(--dim);
+      font-size: 13px;
+    }
+    .spinner::before {
+      content: '';
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent2);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Resizer ── */
+    .resizer {
+      flex-shrink: 0;
+      background: var(--border);
+      transition: background 0.15s;
+      position: relative;
+      z-index: 10;
+    }
+    #viewer:not(.vertical) .resizer { width: 4px; cursor: col-resize; }
+    #viewer.vertical        .resizer { height: 4px; cursor: row-resize; }
+    .resizer:hover, .resizer.dragging { background: var(--accent2); }
+
+    /* ── Bracket body ── */
+    .bracket-body {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .bracket-meta {
+      font-size: 12px;
+      color: var(--dim);
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .bracket-meta strong { color: var(--text); font-size: 13px; }
+    .bracket-meta .total { margin-left: auto; }
+
+    .bracket-section { display: flex; flex-direction: column; gap: 10px; }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent2);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .rounds-row {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 10px;
+    }
+
+    .round-col {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex-shrink: 0;
+      width: 180px;
+    }
+
+    .round-header {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--dim);
+      text-align: center;
+      padding: 3px 6px;
+      background: var(--surface2);
+      border-radius: 4px;
+      white-space: nowrap;
+      letter-spacing: 0.3px;
+    }
+
+    /* Set card */
+    .set-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      overflow: hidden;
+      transition: border-color 0.15s;
+    }
+    .set-card.state-active { border-color: #ff9030; box-shadow: 0 0 0 1px rgba(255,144,48,0.2); }
+    .set-card.state-done   { border-color: #2a3a2a; }
+
+    .set-id {
+      font-size: 9px;
+      color: var(--dim);
+      padding: 2px 8px;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      letter-spacing: 0.3px;
+    }
+
+    .slot-row {
+      display: flex;
+      align-items: center;
+      padding: 5px 8px;
+      gap: 6px;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      min-height: 30px;
+    }
+    .slot-row:last-child { border-bottom: none; }
+
+    .slot-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .slot-score {
+      font-weight: 700;
+      min-width: 18px;
+      text-align: right;
+      font-size: 13px;
+    }
+
+    .slot-win .slot-name  { color: var(--green); font-weight: 600; }
+    .slot-win .slot-score { color: var(--green); }
+    .slot-lose .slot-name  { color: #55556a; }
+    .slot-lose .slot-score { color: #55556a; }
+    .slot-tbd .slot-name   { color: #44445a; font-style: italic; }
+
+    /* Refresh button */
+    .btn-refresh {
+      margin-left: auto;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--dim);
+      border-radius: 5px;
+      padding: 2px 8px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-refresh:hover { border-color: var(--accent2); color: var(--accent2); }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">⚔ 格ゲー大会ビューア</div>
+
+  <div class="field">
+    <label>配信</label>
+    <input type="text" id="stream-url" placeholder="YouTube / Twitch URL">
+  </div>
+
+  <div class="field">
+    <label>ブラケット</label>
+    <input type="text" id="bracket-url" placeholder="start.gg ブラケット URL">
+  </div>
+
+  <div class="field field-sm">
+    <label>API Key</label>
+    <input type="password" id="api-key" placeholder="start.gg トークン">
+  </div>
+
+  <button class="btn" id="load-btn">読み込む</button>
+  <button class="btn btn-sub" id="layout-btn">⇅ 縦並び</button>
+</header>
+
+<div id="viewer">
+
+  <!-- Stream panel -->
+  <div class="panel" id="stream-panel">
+    <div class="panel-bar">
+      <span id="stream-badge"></span>
+      <span id="stream-title">配信</span>
+    </div>
+    <div class="placeholder" id="stream-ph">
+      <div class="placeholder-icon">📺</div>
+      <p>YouTube または Twitch の URL を入力して<br>「読み込む」を押してください</p>
+    </div>
+  </div>
+
+  <div class="resizer" id="resizer"></div>
+
+  <!-- Bracket panel -->
+  <div class="panel" id="bracket-panel">
+    <div class="panel-bar" id="bracket-bar">
+      <span class="badge badge-sg">start.gg</span>
+      <span id="bracket-title">ブラケット</span>
+    </div>
+    <div class="placeholder" id="bracket-ph">
+      <div class="placeholder-icon">🏆</div>
+      <p>start.gg ブラケット URL と API トークンを<br>入力して「読み込む」を押してください</p>
+      <p style="font-size:11px">
+        API トークンは
+        <a href="https://www.start.gg/admin/profile/developer" target="_blank" rel="noopener">
+          start.gg → 設定 → Developer
+        </a> で発行できます
+      </p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+//  Constants
+// ─────────────────────────────────────────────
+
+const GQL = 'https://api.start.gg/gql/alpha';
+
+const BRACKET_QUERY = `
+query PhaseGroupSets($id: ID!) {
+  phaseGroup(id: $id) {
+    id
+    displayIdentifier
+    phase { name bracketType }
+    sets(page: 1, perPage: 128) {
+      pageInfo { total }
+      nodes {
+        id
+        identifier
+        state
+        round
+        fullRoundText
+        winnerId
+        slots {
+          standing {
+            placement
+            entrant { id name }
+            stats { score { value } }
+          }
+          prereqType
+        }
+      }
+    }
+  }
+}
+`;
+
+// ─────────────────────────────────────────────
+//  Input persistence (localStorage)
+// ─────────────────────────────────────────────
+
+const PERSIST = [
+  { id: 'stream-url',  key: 'tv-stream-url' },
+  { id: 'bracket-url', key: 'tv-bracket-url' },
+  { id: 'api-key',     key: 'sg-api-key' },
+];
+
+PERSIST.forEach(({ id, key }) => {
+  const el = document.getElementById(id);
+  const saved = localStorage.getItem(key);
+  if (saved) el.value = saved;
+  el.addEventListener('change', () => {
+    const v = el.value.trim();
+    if (v) localStorage.setItem(key, v);
+    else   localStorage.removeItem(key);
+  });
+});
+
+// ─────────────────────────────────────────────
+//  URL Parsers
+// ─────────────────────────────────────────────
+
+function parseStream(raw) {
+  const s = raw.trim();
+  const tw  = s.match(/twitch\.tv\/(?!videos\/)([a-zA-Z0-9_]{1,40})/);
+  if (tw)  return { type: 'twitch', channel: tw[1] };
+  const twv = s.match(/twitch\.tv\/videos\/(\d+)/);
+  if (twv) return { type: 'twitch-vod', id: twv[1] };
+  const ytv = s.match(/(?:youtube\.com\/(?:watch\?.*v=|live\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  if (ytv) return { type: 'yt-video', id: ytv[1] };
+  return null;
+}
+
+function embedSrc(parsed) {
+  const host = location.hostname || 'localhost';
+  switch (parsed.type) {
+    case 'twitch':
+      return {
+        src:   `https://player.twitch.tv/?channel=${encodeURIComponent(parsed.channel)}&parent=${host}&autoplay=false`,
+        badge: '<span class="badge badge-tw">Twitch</span>',
+        label: parsed.channel,
+      };
+    case 'twitch-vod':
+      return {
+        src:   `https://player.twitch.tv/?video=v${parsed.id}&parent=${host}&autoplay=false`,
+        badge: '<span class="badge badge-tw">Twitch VOD</span>',
+        label: `video/${parsed.id}`,
+      };
+    case 'yt-video':
+      return {
+        src:   `https://www.youtube.com/embed/${parsed.id}?rel=0`,
+        badge: '<span class="badge badge-yt">YouTube</span>',
+        label: parsed.id,
+      };
+  }
+}
+
+function parseStartGGUrl(url) {
+  // .../brackets/{phaseId}/{phaseGroupId}
+  const m = url.match(/start\.gg\/.+\/brackets\/(\d+)\/(\d+)/);
+  if (m) return { phaseId: m[1], phaseGroupId: m[2] };
+  return null;
+}
+
+// ─────────────────────────────────────────────
+//  Stream loader
+// ─────────────────────────────────────────────
+
+function loadStream() {
+  const raw = document.getElementById('stream-url').value;
+  const panel = document.getElementById('stream-panel');
+  panel.querySelectorAll('iframe, .banner').forEach(el => el.remove());
+
+  if (!raw.trim()) { document.getElementById('stream-ph').style.display = ''; return; }
+
+  const parsed = parseStream(raw);
+  if (!parsed) {
+    document.getElementById('stream-ph').style.display = '';
+    showBanner(panel, 'err', '対応していない URL です。YouTube (watch?v=…) または Twitch の URL を入力してください。');
+    return;
+  }
+
+  const embed = embedSrc(parsed);
+  document.getElementById('stream-badge').innerHTML = embed.badge;
+  document.getElementById('stream-title').textContent = embed.label;
+  document.getElementById('stream-ph').style.display = 'none';
+
+  const iframe = document.createElement('iframe');
+  iframe.src = embed.src;
+  iframe.allow = 'autoplay; fullscreen; picture-in-picture';
+  iframe.allowFullscreen = true;
+  panel.appendChild(iframe);
+}
+
+// ─────────────────────────────────────────────
+//  Bracket: fetch from start.gg GraphQL API
+// ─────────────────────────────────────────────
+
+async function fetchPhaseGroup(phaseGroupId, apiKey) {
+  const res = await fetch(GQL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({ query: BRACKET_QUERY, variables: { id: parseInt(phaseGroupId) } }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status} — API キーを確認してください`);
+  const json = await res.json();
+  if (json.errors) throw new Error(json.errors.map(e => e.message).join(', '));
+  if (!json.data?.phaseGroup) throw new Error('ブラケットデータが見つかりません');
+  return json.data.phaseGroup;
+}
+
+async function loadBracket() {
+  const rawUrl = document.getElementById('bracket-url').value.trim();
+  const apiKey = document.getElementById('api-key').value.trim();
+  const panel  = document.getElementById('bracket-panel');
+  const ph     = document.getElementById('bracket-ph');
+
+  panel.querySelectorAll('.bracket-body, .banner, .spinner').forEach(el => el.remove());
+
+  if (!rawUrl) { ph.style.display = ''; return; }
+
+  const parsed = parseStartGGUrl(rawUrl);
+  if (!parsed) {
+    ph.style.display = '';
+    showBanner(panel, 'err', 'start.gg のブラケット URL の形式が正しくありません。\n例: https://www.start.gg/tournament/.../brackets/XXXXX/XXXXX');
+    return;
+  }
+
+  if (!apiKey) {
+    ph.style.display = '';
+    showBanner(panel, 'warn', 'start.gg API トークンが必要です。右上の「API Key」欄に入力してください。\nトークンは start.gg → 設定 → Developer で発行できます。');
+    return;
+  }
+
+  ph.style.display = 'none';
+  const spinner = document.createElement('div');
+  spinner.className = 'spinner';
+  spinner.textContent = '読み込み中…';
+  panel.appendChild(spinner);
+
+  try {
+    const phaseGroup = await fetchPhaseGroup(parsed.phaseGroupId, apiKey);
+    localStorage.setItem('sg-api-key', apiKey);
+    spinner.remove();
+    renderBracket(phaseGroup, rawUrl);
+  } catch (err) {
+    spinner.remove();
+    ph.style.display = '';
+    showBanner(panel, 'err', `エラー: ${err.message}`);
+  }
+}
+
+// ─────────────────────────────────────────────
+//  Bracket renderer
+// ─────────────────────────────────────────────
+
+function renderBracket(phaseGroup, originalUrl) {
+  const panel = document.getElementById('bracket-panel');
+  panel.querySelectorAll('.bracket-body').forEach(el => el.remove());
+
+  const sets  = phaseGroup.sets.nodes;
+  const total = phaseGroup.sets.pageInfo.total;
+
+  document.getElementById('bracket-title').textContent =
+    `${phaseGroup.phase?.name ?? ''} — Pool ${phaseGroup.displayIdentifier ?? phaseGroup.id}`;
+
+  // Add refresh button to bar
+  const bar = document.getElementById('bracket-bar');
+  bar.querySelectorAll('.btn-refresh').forEach(el => el.remove());
+  const refreshBtn = document.createElement('button');
+  refreshBtn.className = 'btn-refresh';
+  refreshBtn.textContent = '↺ 更新';
+  refreshBtn.onclick = loadBracket;
+  bar.appendChild(refreshBtn);
+
+  const body = document.createElement('div');
+  body.className = 'bracket-body';
+
+  // Meta row
+  const meta = document.createElement('div');
+  meta.className = 'bracket-meta';
+  const done  = sets.filter(s => s.state === 3).length;
+  const total2 = sets.length;
+  meta.innerHTML = `
+    <strong>${phaseGroup.phase?.name ?? ''}</strong>
+    Pool ${phaseGroup.displayIdentifier ?? phaseGroup.id}
+    <span class="total">${done} / ${total2} 試合完了${total > total2 ? ` (全${total}試合中 ${total2}件表示)` : ''}</span>
+  `;
+  body.appendChild(meta);
+
+  const winners = sets.filter(s => s.round > 0);
+  const losers  = sets.filter(s => s.round < 0);
+
+  const sortSets = (a, b) => {
+    const rd = Math.abs(a.round) - Math.abs(b.round);
+    return rd !== 0 ? rd : (a.identifier ?? '').localeCompare(b.identifier ?? '', undefined, { numeric: true });
+  };
+  winners.sort(sortSets);
+  losers.sort(sortSets);
+
+  if (winners.length > 0) body.appendChild(renderSection('Winners', winners));
+  if (losers.length  > 0) body.appendChild(renderSection('Losers',  losers));
+  if (winners.length === 0 && losers.length === 0) {
+    const msg = document.createElement('div');
+    msg.className = 'placeholder';
+    msg.innerHTML = '<p>試合データがまだありません</p>';
+    body.appendChild(msg);
+  }
+
+  panel.appendChild(body);
+}
+
+function renderSection(title, sets) {
+  const roundGroups = new Map();
+  for (const set of sets) {
+    const key = set.fullRoundText ?? `Round ${Math.abs(set.round)}`;
+    if (!roundGroups.has(key)) roundGroups.set(key, []);
+    roundGroups.get(key).push(set);
+  }
+
+  const section = document.createElement('div');
+  section.className = 'bracket-section';
+
+  const h = document.createElement('div');
+  h.className = 'section-title';
+  h.textContent = `${title} Bracket`;
+  section.appendChild(h);
+
+  const row = document.createElement('div');
+  row.className = 'rounds-row';
+
+  for (const [roundName, roundSets] of roundGroups) {
+    const col = document.createElement('div');
+    col.className = 'round-col';
+
+    const rh = document.createElement('div');
+    rh.className = 'round-header';
+    rh.textContent = roundName;
+    col.appendChild(rh);
+
+    for (const set of roundSets) col.appendChild(renderSetCard(set));
+    row.appendChild(col);
+  }
+
+  section.appendChild(row);
+  return section;
+}
+
+function renderSetCard(set) {
+  // state: 1=pending, 2=active, 3=done, 6=bye
+  const stateClass = { 1: 'state-pending', 2: 'state-active', 3: 'state-done', 6: 'state-bye' }[set.state] ?? 'state-pending';
+  const card = document.createElement('div');
+  card.className = `set-card ${stateClass}`;
+
+  if (set.identifier) {
+    const id = document.createElement('div');
+    id.className = 'set-id';
+    id.textContent = set.identifier;
+    card.appendChild(id);
+  }
+
+  const slots = set.slots ?? [];
+  for (let i = 0; i < 2; i++) {
+    const slot    = slots[i];
+    const entrant = slot?.standing?.entrant;
+    const score   = slot?.standing?.stats?.score?.value;
+    const placement = slot?.standing?.placement;
+    const isDone  = set.state === 3;
+    const isWin   = isDone && placement === 1;
+    const isLose  = isDone && placement === 2;
+    const isTBD   = !entrant;
+
+    const row = document.createElement('div');
+    row.className = `slot-row${isWin ? ' slot-win' : ''}${isLose ? ' slot-lose' : ''}${isTBD ? ' slot-tbd' : ''}`;
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'slot-name';
+    nameEl.textContent = entrant?.name ?? 'TBD';
+
+    const scoreEl = document.createElement('span');
+    scoreEl.className = 'slot-score';
+    scoreEl.textContent = (isDone && score != null && score >= 0) ? score : '';
+
+    row.appendChild(nameEl);
+    row.appendChild(scoreEl);
+    card.appendChild(row);
+  }
+
+  return card;
+}
+
+// ─────────────────────────────────────────────
+//  Helpers
+// ─────────────────────────────────────────────
+
+function showBanner(panel, type, msg) {
+  const d = document.createElement('div');
+  d.className = `banner banner-${type}`;
+  d.style.whiteSpace = 'pre-line';
+  d.textContent = msg;
+  panel.appendChild(d);
+}
+
+// ─────────────────────────────────────────────
+//  Event wiring
+// ─────────────────────────────────────────────
+
+document.getElementById('load-btn').addEventListener('click', () => { loadStream(); loadBracket(); });
+
+['stream-url', 'bracket-url', 'api-key'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') { loadStream(); loadBracket(); }
+  });
+});
+
+// ─────────────────────────────────────────────
+//  Layout toggle
+// ─────────────────────────────────────────────
+
+const viewer      = document.getElementById('viewer');
+const layoutBtn   = document.getElementById('layout-btn');
+const streamPanel = document.getElementById('stream-panel');
+let vertical = false;
+
+layoutBtn.addEventListener('click', () => {
+  vertical = !vertical;
+  viewer.classList.toggle('vertical', vertical);
+  layoutBtn.textContent = vertical ? '⇄ 横並び' : '⇅ 縦並び';
+  streamPanel.style.width = '';
+  streamPanel.style.height = '';
+  streamPanel.style.flex = vertical ? '0 0 55%' : '0 0 60%';
+});
+
+// ─────────────────────────────────────────────
+//  Resizer
+// ─────────────────────────────────────────────
+
+const resizer = document.getElementById('resizer');
+let dragging = false, startPos = 0, startSize = 0;
+
+function startDrag(pos) {
+  dragging = true;
+  resizer.classList.add('dragging');
+  startPos  = pos;
+  startSize = vertical
+    ? streamPanel.getBoundingClientRect().height
+    : streamPanel.getBoundingClientRect().width;
+  document.body.style.userSelect = 'none';
+  document.body.style.cursor = vertical ? 'row-resize' : 'col-resize';
+}
+function moveDrag(pos) {
+  if (!dragging) return;
+  const delta = pos - startPos;
+  const total = vertical
+    ? viewer.getBoundingClientRect().height
+    : viewer.getBoundingClientRect().width;
+  const pct = Math.min(Math.max((startSize + delta) / total * 100, 15), 85);
+  streamPanel.style.flex = 'none';
+  if (vertical) { streamPanel.style.height = `${pct}%`; streamPanel.style.width = ''; }
+  else          { streamPanel.style.width  = `${pct}%`; streamPanel.style.height = ''; }
+}
+function endDrag() {
+  if (!dragging) return;
+  dragging = false;
+  resizer.classList.remove('dragging');
+  document.body.style.userSelect = '';
+  document.body.style.cursor = '';
+}
+
+resizer.addEventListener('mousedown',  e => startDrag(vertical ? e.clientY : e.clientX));
+document.addEventListener('mousemove', e => moveDrag(vertical ? e.clientY : e.clientX));
+document.addEventListener('mouseup',   endDrag);
+resizer.addEventListener('touchstart', e => startDrag(vertical ? e.touches[0].clientY : e.touches[0].clientX), { passive: true });
+document.addEventListener('touchmove',  e => moveDrag(vertical ? e.touches[0].clientY : e.touches[0].clientX), { passive: true });
+document.addEventListener('touchend',  endDrag);
+</script>
+</body>
+</html>
