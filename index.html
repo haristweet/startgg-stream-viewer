@@ -342,6 +342,41 @@
     }
     .btn-refresh:hover { border-color: var(--accent2); color: var(--accent2); }
 
+    /* ── Bracket nav bar ── */
+    #bracket-nav {
+      flex-shrink: 0;
+      display: none;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    #bracket-nav.visible { display: flex; }
+
+    .nav-label {
+      font-size: 10px;
+      color: var(--dim);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+    }
+
+    .nav-select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      color: var(--text);
+      padding: 3px 6px;
+      font-size: 12px;
+      outline: none;
+      cursor: pointer;
+      max-width: 180px;
+    }
+    .nav-select:focus { border-color: var(--accent2); }
+
     #version-badge {
       font-size: 10px;
       font-weight: 400;
@@ -417,7 +452,7 @@
 <body>
 
 <header>
-  <div class="logo">⚔ 格ゲー大会ビューア <span id="version-badge">v1.1.0</span></div>
+  <div class="logo">⚔ 格ゲー大会ビューア <span id="version-badge">v1.2.0</span></div>
 
   <div class="field">
     <label>配信</label>
@@ -466,6 +501,12 @@
       <span class="badge badge-sg">start.gg</span>
       <span id="bracket-title">ブラケット</span>
     </div>
+    <div id="bracket-nav">
+      <span class="nav-label">Phase</span>
+      <select class="nav-select" id="phase-select"></select>
+      <span class="nav-label" id="group-label">Pool</span>
+      <select class="nav-select" id="group-select"></select>
+    </div>
     <div class="placeholder" id="bracket-ph">
       <div class="placeholder-icon">🏆</div>
       <p>start.gg ブラケット URL と API トークンを<br>入力して「読み込む」を押してください</p>
@@ -486,6 +527,22 @@
 // ─────────────────────────────────────────────
 
 const GQL = 'https://api.start.gg/gql/alpha';
+
+const EVENT_QUERY = `
+query EventPhases($slug: String!) {
+  event(slug: $slug) {
+    id
+    name
+    phases {
+      id
+      name
+      phaseGroups(query: { page: 1, perPage: 100 }) {
+        nodes { id displayIdentifier }
+      }
+    }
+  }
+}
+`;
 
 const BRACKET_QUERY = `
 query PhaseGroupSets($id: ID!) {
@@ -577,9 +634,8 @@ function embedSrc(parsed) {
 }
 
 function parseStartGGUrl(url) {
-  // .../brackets/{phaseId}/{phaseGroupId}
-  const m = url.match(/start\.gg\/.+\/brackets\/(\d+)\/(\d+)/);
-  if (m) return { phaseId: m[1], phaseGroupId: m[2] };
+  const m = url.match(/start\.gg\/(tournament\/[^/?#]+\/event\/[^/?#]+)\/brackets\/(\d+)\/(\d+)/);
+  if (m) return { eventSlug: m[1], phaseId: m[2], phaseGroupId: m[3] };
   return null;
 }
 
@@ -633,6 +689,90 @@ async function fetchPhaseGroup(phaseGroupId, apiKey) {
   return json.data.phaseGroup;
 }
 
+async function fetchEventStructure(eventSlug, apiKey) {
+  const res = await fetch(GQL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+    body: JSON.stringify({ query: EVENT_QUERY, variables: { slug: eventSlug } }),
+  });
+  const json = await res.json();
+  if (json.errors) throw new Error(json.errors.map(e => e.message).join(', '));
+  return json.data.event;
+}
+
+let _eventStructure = null;
+let _apiKey = '';
+
+function populateNav(event, currentPhaseId, currentPhaseGroupId) {
+  _eventStructure = event;
+
+  const phaseSelect = document.getElementById('phase-select');
+  phaseSelect.innerHTML = '';
+  for (const phase of event.phases) {
+    const opt = document.createElement('option');
+    opt.value = phase.id;
+    opt.textContent = phase.name;
+    opt.selected = String(phase.id) === String(currentPhaseId);
+    phaseSelect.appendChild(opt);
+  }
+
+  updateGroupSelect(currentPhaseId, currentPhaseGroupId);
+  document.getElementById('bracket-nav').classList.add('visible');
+}
+
+function updateGroupSelect(phaseId, selectedGroupId = null) {
+  const phase = _eventStructure?.phases.find(p => String(p.id) === String(phaseId));
+  const groups = phase?.phaseGroups?.nodes ?? [];
+  const groupSelect = document.getElementById('group-select');
+  const groupLabel  = document.getElementById('group-label');
+  const sorted = [...groups].sort((a, b) =>
+    a.displayIdentifier.localeCompare(b.displayIdentifier, undefined, { numeric: true }));
+
+  groupSelect.innerHTML = '';
+  for (const g of sorted) {
+    const opt = document.createElement('option');
+    opt.value = g.id;
+    opt.textContent = `Pool ${g.displayIdentifier}`;
+    opt.selected = selectedGroupId ? String(g.id) === String(selectedGroupId) : false;
+    groupSelect.appendChild(opt);
+  }
+
+  const show = sorted.length > 1;
+  groupSelect.style.display = show ? '' : 'none';
+  groupLabel.style.display  = show ? '' : 'none';
+}
+
+async function loadPhaseGroupById(phaseGroupId) {
+  const panel = document.getElementById('bracket-panel');
+  panel.querySelectorAll('.bracket-body, .banner, .spinner').forEach(el => el.remove());
+
+  const spinner = document.createElement('div');
+  spinner.className = 'spinner';
+  spinner.textContent = '読み込み中…';
+  panel.appendChild(spinner);
+
+  try {
+    const phaseGroup = await fetchPhaseGroup(phaseGroupId, _apiKey);
+    spinner.remove();
+    renderBracket(phaseGroup);
+  } catch (err) {
+    spinner.remove();
+    showBanner(panel, 'err', `エラー: ${err.message}`);
+  }
+}
+
+document.getElementById('phase-select').addEventListener('change', async (e) => {
+  const phase = _eventStructure?.phases.find(p => String(p.id) === e.target.value);
+  const firstGroup = phase?.phaseGroups?.nodes?.[0];
+  if (!firstGroup) return;
+  updateGroupSelect(e.target.value, firstGroup.id);
+  await loadPhaseGroupById(firstGroup.id);
+});
+
+document.getElementById('group-select').addEventListener('change', async (e) => {
+  await loadPhaseGroupById(e.target.value);
+});
+
 async function loadBracket() {
   const rawUrl = document.getElementById('bracket-url').value.trim();
   const apiKey = document.getElementById('api-key').value.trim();
@@ -665,10 +805,15 @@ async function loadBracket() {
   if (isMobile()) switchTab('bracket');
 
   try {
-    const phaseGroup = await fetchPhaseGroup(parsed.phaseGroupId, apiKey);
+    _apiKey = apiKey;
+    const [phaseGroup, event] = await Promise.all([
+      fetchPhaseGroup(parsed.phaseGroupId, apiKey),
+      fetchEventStructure(parsed.eventSlug, apiKey),
+    ]);
     localStorage.setItem('sg-api-key', apiKey);
     spinner.remove();
-    renderBracket(phaseGroup, rawUrl);
+    renderBracket(phaseGroup);
+    populateNav(event, parsed.phaseId, parsed.phaseGroupId);
   } catch (err) {
     spinner.remove();
     ph.style.display = '';
@@ -680,7 +825,7 @@ async function loadBracket() {
 //  Bracket renderer
 // ─────────────────────────────────────────────
 
-function renderBracket(phaseGroup, originalUrl) {
+function renderBracket(phaseGroup) {
   const panel = document.getElementById('bracket-panel');
   panel.querySelectorAll('.bracket-body').forEach(el => el.remove());
 
