@@ -522,7 +522,7 @@
 <body>
 
 <header>
-  <div class="logo">⚔ 格ゲー大会ビューア <span id="version-badge">v1.4.7</span></div>
+  <div class="logo">⚔ 格ゲー大会ビューア <span id="version-badge">v1.5.0</span></div>
 
   <div class="field">
     <label>配信</label>
@@ -637,6 +637,7 @@ query PhaseGroupSets($id: ID!) {
             stats { score { value } }
           }
           prereqType
+          prereqId
         }
       }
     }
@@ -1117,7 +1118,8 @@ function renderSection(title, sectionSets, allSets) {
   // getComputedStyle で CSS 変数を解決してから setAttribute に渡す。
   // Safari は SVG presentation attribute も CSS class 内の stroke も
   // var() を解決しないため、これが最も確実な方法。
-  const connColor = getComputedStyle(document.documentElement)
+  // document.body を参照することでライトモード時の body.light 上の --conn も正しく取得できる。
+  const connColor = getComputedStyle(document.body)
     .getPropertyValue('--conn').trim() || '#7a7acc';
 
   function seg(x1, y1, x2, y2) {
