@@ -39,7 +39,7 @@
     body.light .badge-sg { background: #ededff; color: #5b41dd; border-color: #c0b8f8; }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; overflow: hidden; }
+    html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 
     body {
       display: flex;
@@ -241,7 +241,9 @@
     .bracket-body {
       flex: 1;
       min-height: 0;
-      overflow: auto;
+      min-width: 0;
+      overflow-x: hidden;
+      overflow-y: auto;
       padding: 14px;
       display: flex;
       flex-direction: column;
@@ -261,7 +263,7 @@
     .bracket-meta strong { color: var(--text); font-size: 13px; }
     .bracket-meta .total { margin-left: auto; }
 
-    .bracket-section { display: flex; flex-direction: column; gap: 10px; }
+    .bracket-section { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 
     .section-title {
       font-size: 11px;
@@ -458,6 +460,7 @@
       overflow-y: hidden;
       -webkit-overflow-scrolling: touch;
       padding-bottom: 6px;
+      min-width: 0;
     }
 
     /* ── View-mode toggle (mobile only) ── */
@@ -497,7 +500,7 @@
 <body>
 
 <header>
-  <div class="logo">⚔ 格ゲー大会ビューア <span id="version-badge">v1.4.0</span></div>
+  <div class="logo">⚔ 格ゲー大会ビューア <span id="version-badge">v1.4.3</span></div>
 
   <div class="field">
     <label>配信</label>
