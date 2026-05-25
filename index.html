@@ -342,6 +342,13 @@
     }
     .btn-refresh:hover { border-color: var(--accent2); color: var(--accent2); }
 
+    #version-badge {
+      font-size: 10px;
+      font-weight: 400;
+      color: var(--dim);
+      letter-spacing: 0;
+    }
+
     /* ── Tab bar (mobile only) ── */
     #tab-bar {
       display: none;
@@ -394,7 +401,7 @@
 <body>
 
 <header>
-  <div class="logo">⚔ 格ゲー大会ビューア</div>
+  <div class="logo">⚔ 格ゲー大会ビューア <span id="version-badge">v1.0.0</span></div>
 
   <div class="field">
     <label>配信</label>
