@@ -474,7 +474,11 @@
       -webkit-overflow-scrolling: touch;
       padding-bottom: 6px;
       min-width: 0;
-      touch-action: pan-x; /* この要素内で横スワイプを完結させる */
+      /* pan-x pan-y 両方許可することで iOS Safari が縦横どちらの
+         ジェスチャーかを正しく判定できる。pan-x のみだと、キャンバス内
+         から始まるタッチの縦スクロール（Losersブラケットへ移動など）が
+         親の bracket-body に届かずブロックされてしまう。 */
+      touch-action: pan-x pan-y;
     }
 
     /* ── SVG connector lines (CSS class で var() を使う — Safari はSVG属性でvar()が効かない) ── */
