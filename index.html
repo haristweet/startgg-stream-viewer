@@ -885,8 +885,10 @@ async function fetchEventStructure(eventSlug, apiKey) {
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
     body: JSON.stringify({ query: EVENT_QUERY, variables: { slug: eventSlug } }),
   });
+  if (!res.ok) throw new Error(`HTTP ${res.status} — API キーを確認してください`);
   const json = await res.json();
   if (json.errors) throw new Error(json.errors.map(e => e.message).join(', '));
+  if (!json.data?.event) throw new Error('イベントデータが見つかりません。URLまたはAPIキーを確認してください');
   return json.data.event;
 }
 
