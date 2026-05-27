@@ -354,7 +354,7 @@
       font-size: 10px;
       font-weight: 400;
       color: var(--dim);
-      margin-right: 5px;
+      margin-left: 4px;
       opacity: 0.85;
       flex-shrink: 0;
     }
@@ -1460,8 +1460,9 @@ function renderSetCard(set) {
 
     const nameEl = document.createElement('span');
     nameEl.className = 'slot-name';
+    nameEl.appendChild(document.createTextNode(entrant?.name ? _playerTag(entrant.name) : 'TBD'));
 
-    // 年齢バッジ（名前の前に表示）
+    // 年齢バッジ（名前の後に表示）
     if (entrant?.name) {
       const tag  = _playerTag(entrant.name);
       const birth = _playerDB[tag] ?? _playerDB[entrant.name];
@@ -1473,7 +1474,6 @@ function renderSetCard(set) {
         nameEl.appendChild(ageEl);
       }
     }
-    nameEl.appendChild(document.createTextNode(entrant?.name ?? 'TBD'));
 
     const scoreEl = document.createElement('span');
     scoreEl.className = 'slot-score';
