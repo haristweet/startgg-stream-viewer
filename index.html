@@ -1093,11 +1093,20 @@ function renderBracket(phaseGroup) {
 
   // ── 次戦マップ (全セット横断) ──
   // feederSetId → nextSetId : 勝者がどの試合に進むかを示す
+  // ダブルエリミネーションでは同じ prereqId を
+  //   (1) 勝者継続先 (Winners→Winners or Losers→Losers/GF)
+  //   (2) 敗者落ち先 (Winners→Losers)
+  // の両方が参照するため、(2) をスキップして勝者パスだけ記録する。
   const globalFeedsInto = new Map();
   const globalCardEls   = new Map(); // setId → DOM card element (renderSection が登録)
+  const setRoundMap = new Map(sets.map(s => [String(s.id), s.round ?? 0]));
   for (const set of sets) {
+    const destRound = set.round ?? 0;
     for (const slot of (set.slots ?? [])) {
       if (slot.prereqType === 'set' && slot.prereqId) {
+        const srcRound = setRoundMap.get(String(slot.prereqId)) ?? 0;
+        // Winners の敗者が Losers に落ちるパスはスキップ
+        if (srcRound > 0 && destRound < 0) continue;
         globalFeedsInto.set(String(slot.prereqId), String(set.id));
       }
     }
