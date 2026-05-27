@@ -475,6 +475,14 @@
       color: var(--dim);
       letter-spacing: 0;
     }
+    #event-subtitle {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent2);
+      letter-spacing: 0;
+      margin-left: 8px;
+    }
+    #event-subtitle:empty { display: none; }
 
     /* Locked state */
     header.locked input {
@@ -612,7 +620,7 @@
 <body>
 
 <header>
-  <div class="logo">⚔ 格ゲー大会ビューア <span id="version-badge">v1.8.0</span></div>
+  <div class="logo">⚔ 格ゲー大会ビューア <span id="version-badge">v1.8.0</span><span id="event-subtitle"></span></div>
 
   <div class="field">
     <label>配信</label>
@@ -820,6 +828,7 @@ function updateStreamSearchBtn(tournamentName, eventName) {
   const show = !!_streamSearchTerms;
   document.getElementById('search-yt-btn').style.display = show ? '' : 'none';
   document.getElementById('yt-url-row').style.display  = show ? 'flex' : 'none';
+  document.getElementById('event-subtitle').textContent = eventName ?? '';
 }
 
 document.getElementById('search-yt-btn').addEventListener('click', () => {
