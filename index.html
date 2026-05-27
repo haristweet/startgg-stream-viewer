@@ -357,6 +357,17 @@
     .slot-lose .slot-score { color: #55556a; }
     .slot-tbd .slot-name   { color: #44445a; font-style: italic; }
 
+    /* ── 次戦ジャンプ ── */
+    .slot-win.has-next { cursor: pointer; }
+    .slot-win.has-next:hover .slot-name { text-decoration: underline; }
+
+    @keyframes jumpHighlight {
+      0%   { box-shadow: 0 0 0 3px var(--accent2); }
+      60%  { box-shadow: 0 0 0 3px var(--accent2); }
+      100% { box-shadow: none; }
+    }
+    .set-card.jump-target { animation: jumpHighlight 1.4s ease-out forwards; }
+
     /* YouTube URL copy row */
     #yt-url-row {
       flex-shrink: 0;
@@ -585,7 +596,7 @@
 <body>
 
 <header>
-  <div class="logo">⚔ 格ゲー大会ビューア <span id="version-badge">v1.7.0</span></div>
+  <div class="logo">⚔ 格ゲー大会ビューア <span id="version-badge">v1.8.0</span></div>
 
   <div class="field">
     <label>配信</label>
@@ -1080,9 +1091,21 @@ function renderBracket(phaseGroup) {
   winners.sort(sortSets);
   losers.sort(sortSets);
 
+  // ── 次戦マップ (全セット横断) ──
+  // feederSetId → nextSetId : 勝者がどの試合に進むかを示す
+  const globalFeedsInto = new Map();
+  const globalCardEls   = new Map(); // setId → DOM card element (renderSection が登録)
+  for (const set of sets) {
+    for (const slot of (set.slots ?? [])) {
+      if (slot.prereqType === 'set' && slot.prereqId) {
+        globalFeedsInto.set(String(slot.prereqId), String(set.id));
+      }
+    }
+  }
+
   const useList = _bracketViewMode === 'list';
-  if (winners.length > 0) body.appendChild(useList ? renderSectionMobile('Winners', winners) : renderSection('Winners', winners, sets));
-  if (losers.length  > 0) body.appendChild(useList ? renderSectionMobile('Losers',  losers)  : renderSection('Losers',  losers,  sets));
+  if (winners.length > 0) body.appendChild(useList ? renderSectionMobile('Winners', winners) : renderSection('Winners', winners, sets, globalCardEls, globalFeedsInto));
+  if (losers.length  > 0) body.appendChild(useList ? renderSectionMobile('Losers',  losers)  : renderSection('Losers',  losers,  sets, globalCardEls, globalFeedsInto));
   if (winners.length === 0 && losers.length === 0) {
     const msg = document.createElement('div');
     msg.className = 'placeholder';
@@ -1140,7 +1163,7 @@ const HDR_H   = 24;          // column header height
 const COL_W   = 182;         // column width
 const COL_GAP = 30;          // gap between columns
 
-function renderSection(title, sectionSets, allSets) {
+function renderSection(title, sectionSets, allSets, globalCardEls, globalFeedsInto) {
   const section = document.createElement('div');
   section.className = 'bracket-section';
 
@@ -1233,6 +1256,27 @@ function renderSection(title, sectionSets, allSets) {
       card.style.cssText = `position:absolute;top:${cardY}px;left:${colX}px;width:${COL_W}px;`;
       canvas.appendChild(card);
       cardPos.set(String(set.id), { x: colX, y: cardY });
+
+      // 次戦ジャンプ: グローバルマップにカードを登録
+      globalCardEls?.set(String(set.id), card);
+
+      // 勝者行にクリックハンドラーを追加
+      const nextId = globalFeedsInto?.get(String(set.id));
+      if (nextId) {
+        card.querySelectorAll('.slot-win').forEach(row => {
+          row.classList.add('has-next');
+          row.title = '次の試合へジャンプ';
+          row.addEventListener('click', () => {
+            const nextCard = globalCardEls?.get(nextId);
+            if (!nextCard) return;
+            nextCard.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+            nextCard.classList.remove('jump-target');
+            void nextCard.offsetWidth; // reflow でアニメーションをリセット
+            nextCard.classList.add('jump-target');
+            nextCard.addEventListener('animationend', () => nextCard.classList.remove('jump-target'), { once: true });
+          });
+        });
+      }
     }
   });
 
