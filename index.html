@@ -1113,8 +1113,8 @@ function renderBracket(phaseGroup) {
   }
 
   const useList = _bracketViewMode === 'list';
-  if (winners.length > 0) body.appendChild(useList ? renderSectionMobile('Winners', winners) : renderSection('Winners', winners, sets, globalCardEls, globalFeedsInto));
-  if (losers.length  > 0) body.appendChild(useList ? renderSectionMobile('Losers',  losers)  : renderSection('Losers',  losers,  sets, globalCardEls, globalFeedsInto));
+  if (winners.length > 0) body.appendChild(useList ? renderSectionMobile('Winners', winners, globalCardEls, globalFeedsInto) : renderSection('Winners', winners, sets, globalCardEls, globalFeedsInto));
+  if (losers.length  > 0) body.appendChild(useList ? renderSectionMobile('Losers',  losers,  globalCardEls, globalFeedsInto) : renderSection('Losers',  losers,  sets, globalCardEls, globalFeedsInto));
   if (winners.length === 0 && losers.length === 0) {
     const msg = document.createElement('div');
     msg.className = 'placeholder';
@@ -1127,7 +1127,7 @@ function renderBracket(phaseGroup) {
 
 // ── Mobile bracket: simple round-list view ───────────────────────────────────
 
-function renderSectionMobile(title, sectionSets) {
+function renderSectionMobile(title, sectionSets, globalCardEls, globalFeedsInto) {
   const section = document.createElement('div');
   section.className = 'bracket-section';
 
@@ -1156,7 +1156,28 @@ function renderSectionMobile(title, sectionSets) {
     const grid = document.createElement('div');
     grid.className = 'mobile-cards-grid';
     for (const set of sets) {
-      grid.appendChild(renderSetCard(set));
+      const card = renderSetCard(set);
+
+      // 次戦ジャンプ (リスト表示: 通常フローなので scrollIntoView が使える)
+      globalCardEls?.set(String(set.id), card);
+      const nextId = globalFeedsInto?.get(String(set.id));
+      if (nextId) {
+        card.querySelectorAll('.slot-win').forEach(row => {
+          row.classList.add('has-next');
+          row.title = '次の試合へジャンプ';
+          row.addEventListener('click', () => {
+            const nextCard = globalCardEls?.get(nextId);
+            if (!nextCard) return;
+            nextCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            nextCard.classList.remove('jump-target');
+            void nextCard.offsetWidth;
+            nextCard.classList.add('jump-target');
+            nextCard.addEventListener('animationend', () => nextCard.classList.remove('jump-target'), { once: true });
+          });
+        });
+      }
+
+      grid.appendChild(card);
     }
     roundDiv.appendChild(grid);
     section.appendChild(roundDiv);
