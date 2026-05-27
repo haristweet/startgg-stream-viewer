@@ -350,6 +350,13 @@
       text-align: right;
       font-size: 13px;
     }
+    .slot-age {
+      font-size: 10px;
+      font-weight: 400;
+      color: var(--dim);
+      margin-left: 4px;
+      opacity: 0.85;
+    }
 
     .slot-win .slot-name  { color: var(--green); font-weight: 600; }
     .slot-win .slot-score { color: var(--green); }
@@ -905,6 +912,10 @@ async function fetchEventStructure(eventSlug, apiKey) {
 
 let _eventStructure = null;
 let _apiKey = '';
+let _playerDB = {};
+
+// players.json をバックグラウンドで取得
+fetch('players.json').then(r => r.json()).then(data => { _playerDB = data; }).catch(() => {});
 
 function populateNav(event, currentPhaseId, currentPhaseGroupId) {
   _eventStructure = event;
@@ -1391,6 +1402,34 @@ function renderSection(title, sectionSets, allSets, globalCardEls, globalFeedsIn
   return section;
 }
 
+// "TEAM | Tag" → "Tag"。パイプなしはそのまま返す
+function _playerTag(entrantName) {
+  if (!entrantName) return '';
+  const parts = entrantName.split(' | ');
+  return parts[parts.length - 1].trim();
+}
+
+// 生年月日文字列 → 表示用年齢文字列
+// "YYYY-MM-DD" → 正確な年齢 (例: "39")
+// "YYYY"       → 年齢幅      (例: "19-20")
+// ""           → null
+function _ageDisplay(birthStr) {
+  if (!birthStr) return null;
+  const now = new Date();
+  if (/^\d{4}$/.test(birthStr)) {
+    const y = parseInt(birthStr, 10);
+    const older  = now.getFullYear() - y;
+    const younger = older - 1;
+    return `${younger}-${older}`;
+  }
+  const birth = new Date(birthStr);
+  if (isNaN(birth)) return null;
+  let age = now.getFullYear() - birth.getFullYear();
+  const m = now.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) age--;
+  return String(age);
+}
+
 function renderSetCard(set) {
   // state: 1=pending, 2=active, 3=done, 6=bye
   const stateClass = { 1: 'state-pending', 2: 'state-active', 3: 'state-done', 6: 'state-bye' }[set.state] ?? 'state-pending';
@@ -1421,6 +1460,19 @@ function renderSetCard(set) {
     const nameEl = document.createElement('span');
     nameEl.className = 'slot-name';
     nameEl.textContent = entrant?.name ?? 'TBD';
+
+    // 年齢バッジ
+    if (entrant?.name) {
+      const tag  = _playerTag(entrant.name);
+      const birth = _playerDB[tag] ?? _playerDB[entrant.name];
+      const age  = _ageDisplay(birth);
+      if (age) {
+        const ageEl = document.createElement('span');
+        ageEl.className = 'slot-age';
+        ageEl.textContent = age;
+        nameEl.appendChild(ageEl);
+      }
+    }
 
     const scoreEl = document.createElement('span');
     scoreEl.className = 'slot-score';
