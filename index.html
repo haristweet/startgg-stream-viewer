@@ -1270,21 +1270,24 @@ function renderSection(title, sectionSets, allSets, globalCardEls, globalFeedsIn
             const nextCard = globalCardEls?.get(nextId);
             if (!nextCard) return;
 
-            // 絶対配置要素 + ネストスクロールでは scrollIntoView が不安定なため手動スクロール
+            // getBoundingClientRect でビューポート相対位置からスクロール量を計算。
+            // offsetParent チェーンは position:static の要素をスキップするため不正確になる。
             const wrap = nextCard.closest('.bracket-canvas-wrap');
             const body = nextCard.closest('.bracket-body');
+            const cardRect = nextCard.getBoundingClientRect();
 
-            // 横スクロール: カードを wrap の中央に
+            // 横スクロール: カードを wrap の水平中央に
             if (wrap) {
-              const targetLeft = nextCard.offsetLeft - (wrap.clientWidth - COL_W) / 2;
-              wrap.scrollTo({ left: Math.max(0, targetLeft), behavior: 'smooth' });
+              const wrapRect = wrap.getBoundingClientRect();
+              const deltaX = cardRect.left - wrapRect.left - (wrap.clientWidth - COL_W) / 2;
+              wrap.scrollBy({ left: deltaX, behavior: 'smooth' });
             }
 
-            // 縦スクロール: offsetParent チェーンで body からの距離を算出
+            // 縦スクロール: カードを body の垂直中央に
             if (body) {
-              let top = 0, el = nextCard;
-              while (el && el !== body) { top += el.offsetTop; el = el.offsetParent; }
-              body.scrollTo({ top: Math.max(0, top - body.clientHeight / 2 + CARD_H / 2), behavior: 'smooth' });
+              const bodyRect = body.getBoundingClientRect();
+              const deltaY = cardRect.top - bodyRect.top - body.clientHeight / 2 + CARD_H / 2;
+              body.scrollBy({ top: deltaY, behavior: 'smooth' });
             }
 
             // ハイライト
