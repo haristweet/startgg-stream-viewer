@@ -358,6 +358,8 @@
       opacity: 0.85;
       flex-shrink: 0;
     }
+    .slot-team { display: none; }
+    body.show-team .slot-team { display: inline; }
 
     .slot-win .slot-name  { color: var(--green); font-weight: 600; }
     .slot-win .slot-score { color: var(--green); }
@@ -914,9 +916,13 @@ async function fetchEventStructure(eventSlug, apiKey) {
 let _eventStructure = null;
 let _apiKey = '';
 let _playerDB = {};
+let _showTeam = localStorage.getItem('tv-show-team') === 'true';
 
 // players.json をバックグラウンドで取得
 fetch('players.json').then(r => r.json()).then(data => { _playerDB = data; }).catch(() => {});
+
+// 所属表示を body クラスで制御（CSS だけで切り替え・再描画不要）
+document.body.classList.toggle('show-team', _showTeam);
 
 function populateNav(event, currentPhaseId, currentPhaseGroupId) {
   _eventStructure = event;
@@ -1059,7 +1065,7 @@ function renderBracket(phaseGroup) {
 
   // ── Bar buttons (refresh + view-mode toggle) ──
   const bar = document.getElementById('bracket-bar');
-  bar.querySelectorAll('.btn-refresh, .btn-view-toggle').forEach(el => el.remove());
+  bar.querySelectorAll('.btn-refresh, .btn-view-toggle, .btn-team-toggle').forEach(el => el.remove());
 
   const viewBtn = document.createElement('button');
   viewBtn.className = 'btn-refresh btn-view-toggle';
@@ -1071,6 +1077,19 @@ function renderBracket(phaseGroup) {
     renderBracket(_currentPhaseGroup);
   };
   bar.appendChild(viewBtn);
+
+  const teamBtn = document.createElement('button');
+  teamBtn.className = 'btn-refresh btn-team-toggle';
+  teamBtn.textContent = '🏷 所属';
+  teamBtn.title = '所属をオン/オフ';
+  if (_showTeam) teamBtn.style.color = 'var(--accent2)';
+  teamBtn.onclick = () => {
+    _showTeam = !_showTeam;
+    localStorage.setItem('tv-show-team', _showTeam);
+    document.body.classList.toggle('show-team', _showTeam);
+    teamBtn.style.color = _showTeam ? 'var(--accent2)' : '';
+  };
+  bar.appendChild(teamBtn);
 
   const refreshBtn = document.createElement('button');
   refreshBtn.className = 'btn-refresh';
@@ -1460,7 +1479,20 @@ function renderSetCard(set) {
 
     const nameEl = document.createElement('span');
     nameEl.className = 'slot-name';
-    nameEl.appendChild(document.createTextNode(entrant?.name ? _playerTag(entrant.name) : 'TBD'));
+    if (entrant?.name) {
+      const parts = entrant.name.split(' | ');
+      const tag   = parts[parts.length - 1].trim();
+      const team  = parts.length > 1 ? parts.slice(0, -1).join(' | ') + ' | ' : '';
+      if (team) {
+        const teamEl = document.createElement('span');
+        teamEl.className = 'slot-team';
+        teamEl.textContent = team;
+        nameEl.appendChild(teamEl);
+      }
+      nameEl.appendChild(document.createTextNode(tag));
+    } else {
+      nameEl.appendChild(document.createTextNode('TBD'));
+    }
 
     // 年齢バッジ（名前の後に表示）
     if (entrant?.name) {
