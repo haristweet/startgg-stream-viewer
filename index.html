@@ -361,6 +361,12 @@
     .slot-team { display: none; }
     body.show-team .slot-team { display: inline; }
 
+    /* 年齢差20歳以上 — 黄金 */
+    .set-card.age-gap {
+      border-color: #c8a800;
+      box-shadow: 0 0 0 1px #c8a800, 0 0 12px 2px rgba(200, 168, 0, 0.45);
+    }
+
     .slot-win .slot-name  { color: var(--green); font-weight: 600; }
     .slot-win .slot-score { color: var(--green); }
     .slot-lose .slot-name  { color: #55556a; }
@@ -1422,6 +1428,21 @@ function renderSection(title, sectionSets, allSets, globalCardEls, globalFeedsIn
   return section;
 }
 
+// 年齢比較用の数値年齢（年のみの場合は概算）
+function _numericAge(birthStr) {
+  if (!birthStr) return null;
+  const now = new Date();
+  if (/^\d{4}$/.test(birthStr)) {
+    return now.getFullYear() - parseInt(birthStr, 10);
+  }
+  const birth = new Date(birthStr);
+  if (isNaN(birth)) return null;
+  let age = now.getFullYear() - birth.getFullYear();
+  const m = now.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) age--;
+  return age;
+}
+
 // "TEAM | Tag" → "Tag"。パイプなしはそのまま返す
 function _playerTag(entrantName) {
   if (!entrantName) return '';
@@ -1455,6 +1476,17 @@ function renderSetCard(set) {
   const stateClass = { 1: 'state-pending', 2: 'state-active', 3: 'state-done', 6: 'state-bye' }[set.state] ?? 'state-pending';
   const card = document.createElement('div');
   card.className = `set-card ${stateClass}`;
+
+  // 年齢差20歳以上で黄金クラス
+  const slotAges = (set.slots ?? []).map(slot => {
+    const name = slot?.standing?.entrant?.name;
+    if (!name) return null;
+    const tag = _playerTag(name);
+    return _numericAge(_playerDB[tag] ?? _playerDB[name]);
+  });
+  if (slotAges[0] != null && slotAges[1] != null && Math.abs(slotAges[0] - slotAges[1]) >= 20) {
+    card.classList.add('age-gap');
+  }
 
   if (set.identifier) {
     const id = document.createElement('div');
