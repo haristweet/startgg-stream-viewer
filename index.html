@@ -362,11 +362,11 @@
     .slot-win.has-next:hover .slot-name { text-decoration: underline; }
 
     @keyframes jumpHighlight {
-      0%   { box-shadow: 0 0 0 3px var(--accent2); }
-      60%  { box-shadow: 0 0 0 3px var(--accent2); }
+      0%   { box-shadow: 0 0 0 4px var(--accent2), 0 0 16px var(--accent2); }
+      65%  { box-shadow: 0 0 0 4px var(--accent2), 0 0 16px var(--accent2); }
       100% { box-shadow: none; }
     }
-    .set-card.jump-target { animation: jumpHighlight 1.4s ease-out forwards; }
+    .set-card.jump-target { animation: jumpHighlight 1.6s ease-out forwards; }
 
     /* YouTube URL copy row */
     #yt-url-row {
@@ -1269,7 +1269,25 @@ function renderSection(title, sectionSets, allSets, globalCardEls, globalFeedsIn
           row.addEventListener('click', () => {
             const nextCard = globalCardEls?.get(nextId);
             if (!nextCard) return;
-            nextCard.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+
+            // 絶対配置要素 + ネストスクロールでは scrollIntoView が不安定なため手動スクロール
+            const wrap = nextCard.closest('.bracket-canvas-wrap');
+            const body = nextCard.closest('.bracket-body');
+
+            // 横スクロール: カードを wrap の中央に
+            if (wrap) {
+              const targetLeft = nextCard.offsetLeft - (wrap.clientWidth - COL_W) / 2;
+              wrap.scrollTo({ left: Math.max(0, targetLeft), behavior: 'smooth' });
+            }
+
+            // 縦スクロール: offsetParent チェーンで body からの距離を算出
+            if (body) {
+              let top = 0, el = nextCard;
+              while (el && el !== body) { top += el.offsetTop; el = el.offsetParent; }
+              body.scrollTo({ top: Math.max(0, top - body.clientHeight / 2 + CARD_H / 2), behavior: 'smooth' });
+            }
+
+            // ハイライト
             nextCard.classList.remove('jump-target');
             void nextCard.offsetWidth; // reflow でアニメーションをリセット
             nextCard.classList.add('jump-target');
