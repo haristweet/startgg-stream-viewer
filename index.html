@@ -468,6 +468,7 @@
       max-width: 180px;
     }
     .nav-select:focus { border-color: var(--accent2); }
+    .url-history-select { flex-shrink: 0; max-width: 100px; font-size: 11px; padding: 3px 4px; }
 
     #version-badge {
       font-size: 10px;
@@ -630,6 +631,9 @@
   <div class="field">
     <label>ブラケット</label>
     <input type="text" id="bracket-url" placeholder="start.gg ブラケット URL" enterkeyhint="go">
+    <select id="url-history-select" class="nav-select url-history-select" style="display:none" title="保存済みURL">
+      <option value="">📋 履歴</option>
+    </select>
   </div>
 
   <div class="field field-sm">
@@ -770,6 +774,43 @@ PERSIST.forEach(({ id, key }) => {
     else   localStorage.removeItem(key);
   });
 });
+
+// ─────────────────────────────────────────────
+//  URL History (最大5件)
+// ─────────────────────────────────────────────
+
+function loadUrlHistory() {
+  const history = JSON.parse(localStorage.getItem('tv-url-history') || '[]');
+  const sel = document.getElementById('url-history-select');
+  sel.innerHTML = '<option value="">📋 履歴</option>';
+  if (history.length === 0) { sel.style.display = 'none'; return; }
+  sel.style.display = '';
+  history.forEach(item => {
+    const opt = document.createElement('option');
+    opt.value = item.url;
+    opt.textContent = item.label;
+    sel.appendChild(opt);
+  });
+}
+
+function saveUrlToHistory(url, tournamentName, eventName) {
+  const label = [tournamentName, eventName].filter(Boolean).join(' / ') || url;
+  const history = JSON.parse(localStorage.getItem('tv-url-history') || '[]');
+  const idx = history.findIndex(item => item.url === url);
+  if (idx !== -1) history.splice(idx, 1);
+  history.unshift({ url, label });
+  if (history.length > 5) history.pop();
+  localStorage.setItem('tv-url-history', JSON.stringify(history));
+  loadUrlHistory();
+}
+
+document.getElementById('url-history-select').addEventListener('change', (e) => {
+  if (!e.target.value) return;
+  document.getElementById('bracket-url').value = e.target.value;
+  e.target.value = '';
+});
+
+loadUrlHistory();
 
 // ─────────────────────────────────────────────
 //  URL Parsers
@@ -1047,6 +1088,7 @@ async function loadBracket() {
       fetchEventStructure(parsed.eventSlug, apiKey),
     ]);
     localStorage.setItem('sg-api-key', apiKey);
+    saveUrlToHistory(rawUrl, event.tournament?.name, event.name);
     spinner.remove();
     renderBracket(phaseGroup);
     populateNav(event, parsed.phaseId, parsed.phaseGroupId);
