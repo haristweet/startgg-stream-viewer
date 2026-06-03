@@ -1,0 +1,102 @@
+name: Restock Alert - Alpen Product
+
+on:
+  schedule:
+    - cron: '0 */2 * * *'   # 2時間おきにチェック
+  workflow_dispatch:          # 手動実行も可能
+
+jobs:
+  check-stock:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+
+    steps:
+      - name: Check product page
+        id: check
+        run: |
+          RESPONSE=$(curl -s -L --max-time 30 \
+            -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
+            -H "Accept: text/html,application/xhtml+xml" \
+            -H "Accept-Language: ja,en-US;q=0.9,en;q=0.8" \
+            "https://store.alpen-group.jp/Form/Product/ProductDetail.aspx?shop=0&pid=8450113336-0001&vid=8450113336-0001-128-1900&bid=0415")
+
+          if [ -z "$RESPONSE" ]; then
+            echo "status=error" >> "$GITHUB_OUTPUT"
+            echo "::warning::ページの取得に失敗しました"
+            exit 0
+          fi
+
+          # 在庫あり判定（カートボタンが有効な場合）
+          if echo "$RESPONSE" | grep -qiE "カートに入れる|ショッピングカートに入れる|btnCartIn[^a-zA-Z]|cart.*add|add.*cart"; then
+            echo "status=in_stock" >> "$GITHUB_OUTPUT"
+          # 在庫なし判定
+          elif echo "$RESPONSE" | grep -qiE "SOLD.?OUT|在庫なし|品切れ|完売|ご注文できません|在庫切れ|入荷待ち"; then
+            echo "status=out_of_stock" >> "$GITHUB_OUTPUT"
+          else
+            # どちらも検出できない場合は生HTMLを記録して終了
+            echo "status=unknown" >> "$GITHUB_OUTPUT"
+            echo "::notice::在庫状況を判定できませんでした（ページ構造が変わった可能性があります）"
+          fi
+
+      - name: Check for existing open alert
+        if: steps.check.outputs.status == 'in_stock'
+        id: existing
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'restock-alert',
+              state: 'open',
+            });
+            core.setOutput('count', String(issues.length));
+
+      - name: Create restock-alert label if missing
+        if: steps.check.outputs.status == 'in_stock' && steps.existing.outputs.count == '0'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              await github.rest.issues.getLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: 'restock-alert',
+              });
+            } catch (e) {
+              await github.rest.issues.createLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: 'restock-alert',
+                color: 'e11d48',
+                description: '再入荷アラート',
+              });
+            }
+
+      - name: Open restock notification issue
+        if: steps.check.outputs.status == 'in_stock' && steps.existing.outputs.count == '0'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const url = 'https://store.alpen-group.jp/Form/Product/ProductDetail.aspx?shop=0&pid=8450113336-0001&vid=8450113336-0001-128-1900&bid=0415';
+            const now = new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🛍 再入荷アラート: アルペン商品が購入可能になりました！',
+              body: [
+                '## 在庫が復活しました',
+                '',
+                `**検知日時:** ${now} (JST)`,
+                '',
+                '**商品ページ:**',
+                `[今すぐ購入する](${url})`,
+                '',
+                '---',
+                '_このIssueは GitHub Actions の自動チェックによって作成されました。_',
+                '_購入が完了したらこのIssueをCloseしてください。_',
+              ].join('\n'),
+              labels: ['restock-alert'],
+            });
+            console.log('再入荷通知Issueを作成しました');
