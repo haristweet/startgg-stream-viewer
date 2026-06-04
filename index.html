@@ -740,6 +740,7 @@ query PhaseGroupSets($id: ID!) {
         fullRoundText
         winnerId
         slots {
+          entrant { id name }
           standing {
             placement
             entrant { id name }
@@ -1530,7 +1531,7 @@ function renderSetCard(set) {
 
   // 年齢差20歳以上で黄金クラス
   const slotAges = (set.slots ?? []).map(slot => {
-    const name = slot?.standing?.entrant?.name;
+    const name = slot?.standing?.entrant?.name ?? slot?.entrant?.name;
     if (!name) return null;
     const tag = _playerTag(name);
     return _numericAge(_playerDB[tag] ?? _playerDB[name]);
@@ -1549,7 +1550,7 @@ function renderSetCard(set) {
   const slots = set.slots ?? [];
   for (let i = 0; i < 2; i++) {
     const slot    = slots[i];
-    const entrant = slot?.standing?.entrant;
+    const entrant = slot?.standing?.entrant ?? slot?.entrant;
     const score   = slot?.standing?.stats?.score?.value;
     const placement = slot?.standing?.placement;
     const isDone  = set.state === 3;
