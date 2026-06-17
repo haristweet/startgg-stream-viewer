@@ -39,6 +39,7 @@
     body.light .slot-win .slot-score{ color: #1a7f3a; }
     body.light .slot-lose .slot-name { color: #aaaacc; }
     body.light .slot-tbd .slot-name  { color: #aaaacc; }
+    body.light .slot-dq .slot-score  { color: #cc2222; }
     body.light .badge-sg { background: #ededff; color: #5b41dd; border-color: #c0b8f8; }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -372,6 +373,7 @@
     .slot-lose .slot-name  { color: #55556a; }
     .slot-lose .slot-score { color: #55556a; }
     .slot-tbd .slot-name   { color: #44445a; font-style: italic; }
+    .slot-dq .slot-score   { color: #e05555; font-size: 11px; }
 
     /* ── 次戦ジャンプ ── */
     .slot-win.has-next { cursor: pointer; }
@@ -1556,10 +1558,11 @@ function renderSetCard(set) {
     const isDone  = set.state === 3;
     const isWin   = isDone && placement === 1;
     const isLose  = isDone && placement === 2;
+    const isDQ    = score === -1;
     const isTBD   = !entrant;
 
     const row = document.createElement('div');
-    row.className = `slot-row${isWin ? ' slot-win' : ''}${isLose ? ' slot-lose' : ''}${isTBD ? ' slot-tbd' : ''}`;
+    row.className = `slot-row${isWin ? ' slot-win' : ''}${isLose ? ' slot-lose' : ''}${isDQ ? ' slot-dq' : ''}${isTBD ? ' slot-tbd' : ''}`;
 
     const nameEl = document.createElement('span');
     nameEl.className = 'slot-name';
@@ -1593,7 +1596,7 @@ function renderSetCard(set) {
 
     const scoreEl = document.createElement('span');
     scoreEl.className = 'slot-score';
-    scoreEl.textContent = (isDone && score != null && score >= 0) ? score : '';
+    scoreEl.textContent = isDQ ? 'DQ' : (isDone && score != null && score >= 0) ? score : '';
 
     row.appendChild(nameEl);
     row.appendChild(scoreEl);
